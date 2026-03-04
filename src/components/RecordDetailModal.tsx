@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { X, FileText, Download, Loader2, AlertCircle, CheckCircle2, UploadCloud } from 'lucide-react';
+import Modal from './common/Modal';
 
 interface ApplicationRecord {
     id: string;
@@ -474,8 +475,8 @@ export default function RecordDetailModal({ record, onClose, baseId, apiKey, ava
 
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-neutral-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+        <React.Fragment>
+            <Modal isOpen={true} onClose={onClose} className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
 
                 {/* Header */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100 bg-neutral-50/50">
@@ -667,7 +668,7 @@ export default function RecordDetailModal({ record, onClose, baseId, apiKey, ava
                         )}
                     </div>
                 </div>
-            </div>
+            </Modal>
 
             {/* Custom Toast Notification Overlay */}
             {toast && toast.show && (
@@ -676,6 +677,6 @@ export default function RecordDetailModal({ record, onClose, baseId, apiKey, ava
                     <span className="text-sm font-bold">{toast.message}</span>
                 </div>
             )}
-        </div>
+        </React.Fragment>
     );
 }

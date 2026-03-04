@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, UserPlus, AlertCircle, CheckCircle2 } from 'lucide-react';
+import Modal from './common/Modal';
 
 interface SignUpModalProps {
     onClose: () => void;
@@ -98,134 +99,132 @@ export default function SignUpModal({ onClose }: SignUpModalProps) {
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden transform transition-all animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
-                {/* Header */}
-                <div className="bg-indigo-600 px-6 py-4 flex items-center justify-between shrink-0">
-                    <h3 className="text-lg font-bold text-white flex items-center">
-                        <UserPlus className="w-5 h-5 mr-2 text-indigo-200" />
-                        팀 신규 회원가입
-                    </h3>
-                    <button
-                        onClick={onClose}
-                        className="text-indigo-200 hover:text-white transition-colors focus:outline-none"
-                    >
-                        <X className="w-6 h-6" />
-                    </button>
-                </div>
+        <Modal isOpen={true} onClose={onClose} className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden transform transition-all flex flex-col max-h-[90vh]">
+            {/* Header */}
+            <div className="bg-indigo-600 px-6 py-4 flex items-center justify-between shrink-0">
+                <h3 className="text-lg font-bold text-white flex items-center">
+                    <UserPlus className="w-5 h-5 mr-2 text-indigo-200" />
+                    팀 신규 회원가입
+                </h3>
+                <button
+                    onClick={onClose}
+                    className="text-indigo-200 hover:text-white transition-colors focus:outline-none"
+                >
+                    <X className="w-6 h-6" />
+                </button>
+            </div>
 
-                {/* Content */}
-                <div className="p-6 overflow-y-auto">
-                    {successMsg ? (
-                        <div className="py-8 text-center animate-in fade-in zoom-in duration-300">
-                            <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-6">
-                                <CheckCircle2 className="h-8 w-8 text-green-600" />
-                            </div>
-                            <h3 className="text-xl font-bold text-neutral-900 mb-2 truncate whitespace-pre-wrap">{successMsg}</h3>
+            {/* Content */}
+            <div className="p-6 overflow-y-auto">
+                {successMsg ? (
+                    <div className="py-8 text-center animate-in fade-in zoom-in duration-300">
+                        <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-6">
+                            <CheckCircle2 className="h-8 w-8 text-green-600" />
                         </div>
-                    ) : (
-                        <>
-                            {errorMsg && (
-                                <div className="mb-4 p-4 bg-red-50 text-red-600 rounded-xl text-sm font-medium border border-red-100 flex items-start">
-                                    <AlertCircle className="w-5 h-5 mr-2 shrink-0 mt-0.5 text-red-500" />
-                                    {errorMsg}
-                                </div>
-                            )}
+                        <h3 className="text-xl font-bold text-neutral-900 mb-2 truncate whitespace-pre-wrap">{successMsg}</h3>
+                    </div>
+                ) : (
+                    <>
+                        {errorMsg && (
+                            <div className="mb-4 p-4 bg-red-50 text-red-600 rounded-xl text-sm font-medium border border-red-100 flex items-start">
+                                <AlertCircle className="w-5 h-5 mr-2 shrink-0 mt-0.5 text-red-500" />
+                                {errorMsg}
+                            </div>
+                        )}
 
-                            <form onSubmit={handleSignUp} className="space-y-4">
-                                <p className="text-sm text-neutral-600 mb-6">
-                                    새로운 MVP 제작 팀을 등록합니다.
-                                </p>
+                        <form onSubmit={handleSignUp} className="space-y-4">
+                            <p className="text-sm text-neutral-600 mb-6">
+                                새로운 MVP 제작 팀을 등록합니다.
+                            </p>
+                            <div>
+                                <label className="block text-sm font-semibold text-neutral-700 mb-1">팀명<span className="text-red-500 ml-1">*</span></label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={teamName}
+                                    onChange={e => setTeamName(e.target.value)}
+                                    className="w-full px-4 py-2.5 rounded-xl bg-neutral-50 border border-neutral-200 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder-neutral-400"
+                                    placeholder="고유한 팀명 입력"
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-semibold text-neutral-700 mb-1">팀명<span className="text-red-500 ml-1">*</span></label>
+                                    <label className="block text-sm font-semibold text-neutral-700 mb-1">팀장명<span className="text-red-500 ml-1">*</span></label>
                                     <input
                                         type="text"
                                         required
-                                        value={teamName}
-                                        onChange={e => setTeamName(e.target.value)}
+                                        value={leaderName}
+                                        onChange={e => setLeaderName(e.target.value)}
                                         className="w-full px-4 py-2.5 rounded-xl bg-neutral-50 border border-neutral-200 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder-neutral-400"
-                                        placeholder="고유한 팀명 입력"
+                                        placeholder="홍길동"
                                     />
                                 </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-semibold text-neutral-700 mb-1">팀장명<span className="text-red-500 ml-1">*</span></label>
-                                        <input
-                                            type="text"
-                                            required
-                                            value={leaderName}
-                                            onChange={e => setLeaderName(e.target.value)}
-                                            className="w-full px-4 py-2.5 rounded-xl bg-neutral-50 border border-neutral-200 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder-neutral-400"
-                                            placeholder="홍길동"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-semibold text-neutral-700 mb-1">연락처<span className="text-red-500 ml-1">*</span></label>
-                                        <input
-                                            type="text"
-                                            required
-                                            value={contact}
-                                            onChange={e => setContact(e.target.value)}
-                                            className="w-full px-4 py-2.5 rounded-xl bg-neutral-50 border border-neutral-200 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder-neutral-400"
-                                            placeholder="010-0000-0000"
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="pt-2">
-                                    <label className="block text-sm font-semibold text-neutral-700 mb-2">경상국립대생 여부<span className="text-red-500 ml-1">*</span></label>
-                                    <div className="flex space-x-4">
-                                        <label className="flex items-center cursor-pointer">
-                                            <input
-                                                type="radio"
-                                                name="isGnu"
-                                                checked={isGnuStudent === true}
-                                                onChange={() => setIsGnuStudent(true)}
-                                                className="w-4 h-4 text-indigo-600 bg-neutral-100 border-neutral-300 focus:ring-indigo-500"
-                                            />
-                                            <span className="ml-2 text-sm text-neutral-800 font-medium">네, 맞습니다</span>
-                                        </label>
-                                        <label className="flex items-center cursor-pointer">
-                                            <input
-                                                type="radio"
-                                                name="isGnu"
-                                                checked={isGnuStudent === false}
-                                                onChange={() => setIsGnuStudent(false)}
-                                                className="w-4 h-4 text-indigo-600 bg-neutral-100 border-neutral-300 focus:ring-indigo-500"
-                                            />
-                                            <span className="ml-2 text-sm text-neutral-800 font-medium">아닙니다</span>
-                                        </label>
-                                    </div>
-                                </div>
-
-                                <div className="pt-2">
-                                    <label className="block text-sm font-semibold text-neutral-700 mb-1">로그인 비밀번호<span className="text-red-500 ml-1">*</span></label>
+                                <div>
+                                    <label className="block text-sm font-semibold text-neutral-700 mb-1">연락처<span className="text-red-500 ml-1">*</span></label>
                                     <input
-                                        type="password"
+                                        type="text"
                                         required
-                                        value={password}
-                                        onChange={e => setPassword(e.target.value.replace(/[^\d]/g, ''))} // only digits
+                                        value={contact}
+                                        onChange={e => setContact(e.target.value)}
                                         className="w-full px-4 py-2.5 rounded-xl bg-neutral-50 border border-neutral-200 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder-neutral-400"
-                                        placeholder="6자리 이상의 숫자"
-                                        maxLength={12}
+                                        placeholder="010-0000-0000"
                                     />
-                                    <p className="text-xs text-neutral-500 mt-1.5">비밀번호는 보안을 위해 6자리 이상의 숫자로 제한됩니다.</p>
                                 </div>
+                            </div>
 
-                                <div className="pt-6">
-                                    <button
-                                        type="submit"
-                                        disabled={isLoading}
-                                        className="w-full flex items-center justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 transition-colors"
-                                    >
-                                        {isLoading ? '등록 중...' : '가입 완료하기'}
-                                    </button>
+                            <div className="pt-2">
+                                <label className="block text-sm font-semibold text-neutral-700 mb-2">경상국립대생 여부<span className="text-red-500 ml-1">*</span></label>
+                                <div className="flex space-x-4">
+                                    <label className="flex items-center cursor-pointer">
+                                        <input
+                                            type="radio"
+                                            name="isGnu"
+                                            checked={isGnuStudent === true}
+                                            onChange={() => setIsGnuStudent(true)}
+                                            className="w-4 h-4 text-indigo-600 bg-neutral-100 border-neutral-300 focus:ring-indigo-500"
+                                        />
+                                        <span className="ml-2 text-sm text-neutral-800 font-medium">네, 맞습니다</span>
+                                    </label>
+                                    <label className="flex items-center cursor-pointer">
+                                        <input
+                                            type="radio"
+                                            name="isGnu"
+                                            checked={isGnuStudent === false}
+                                            onChange={() => setIsGnuStudent(false)}
+                                            className="w-4 h-4 text-indigo-600 bg-neutral-100 border-neutral-300 focus:ring-indigo-500"
+                                        />
+                                        <span className="ml-2 text-sm text-neutral-800 font-medium">아닙니다</span>
+                                    </label>
                                 </div>
-                            </form>
-                        </>
-                    )}
-                </div>
+                            </div>
+
+                            <div className="pt-2">
+                                <label className="block text-sm font-semibold text-neutral-700 mb-1">로그인 비밀번호<span className="text-red-500 ml-1">*</span></label>
+                                <input
+                                    type="password"
+                                    required
+                                    value={password}
+                                    onChange={e => setPassword(e.target.value.replace(/[^\d]/g, ''))} // only digits
+                                    className="w-full px-4 py-2.5 rounded-xl bg-neutral-50 border border-neutral-200 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder-neutral-400"
+                                    placeholder="6자리 이상의 숫자"
+                                    maxLength={12}
+                                />
+                                <p className="text-xs text-neutral-500 mt-1.5">비밀번호는 보안을 위해 6자리 이상의 숫자로 제한됩니다.</p>
+                            </div>
+
+                            <div className="pt-6">
+                                <button
+                                    type="submit"
+                                    disabled={isLoading}
+                                    className="w-full flex items-center justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 transition-colors"
+                                >
+                                    {isLoading ? '등록 중...' : '가입 완료하기'}
+                                </button>
+                            </div>
+                        </form>
+                    </>
+                )}
             </div>
-        </div>
+        </Modal>
     );
 }

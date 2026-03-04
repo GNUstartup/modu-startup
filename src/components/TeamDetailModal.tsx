@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { X, Save, Clock, Wallet, UserCog, CheckCircle2, TrendingUp, User, RefreshCw, Trash2, AlertTriangle } from 'lucide-react';
+import Modal from './common/Modal';
+import React from 'react';
 
 interface AirtableRecord {
     id: string;
@@ -104,7 +106,7 @@ export default function TeamDetailModal({
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+        <React.Fragment>
             {/* Custom Dark Toast */}
             {showToast && (
                 <div className="fixed top-6 left-1/2 transform -translate-x-1/2 z-[60] animate-in fade-in slide-in-from-top-4 duration-300">
@@ -117,39 +119,37 @@ export default function TeamDetailModal({
 
             {/* Delete Confirmation Modal */}
             {showDeleteConfirm && (
-                <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden transform transition-all animate-in zoom-in-95 duration-200 border border-neutral-200">
-                        <div className="p-8 text-center">
-                            <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-5">
-                                <AlertTriangle className="w-8 h-8 text-red-500" />
-                            </div>
-                            <h3 className="text-xl font-bold text-neutral-900 mb-2">팀 삭제</h3>
-                            <p className="text-sm text-neutral-500 mb-8 leading-relaxed">
-                                정말로 이 팀을 삭제하시겠습니까?<br />삭제된 데이터는 복구할 수 없습니다.
-                            </p>
-                            <div className="flex gap-3">
-                                <button
-                                    onClick={() => setShowDeleteConfirm(false)}
-                                    disabled={isDeleting}
-                                    className="flex-1 py-3 px-4 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-bold rounded-xl transition-colors disabled:opacity-50"
-                                >
-                                    취소
-                                </button>
-                                <button
-                                    onClick={handleDeleteTeam}
-                                    disabled={isDeleting}
-                                    className="flex-1 py-3 px-4 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center"
-                                >
-                                    {isDeleting ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : null}
-                                    삭제
-                                </button>
-                            </div>
+                <Modal isOpen={true} onClose={() => setShowDeleteConfirm(false)} zIndex="z-[70]" className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden border border-neutral-200">
+                    <div className="p-8 text-center">
+                        <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-5">
+                            <AlertTriangle className="w-8 h-8 text-red-500" />
+                        </div>
+                        <h3 className="text-xl font-bold text-neutral-900 mb-2">팀 삭제</h3>
+                        <p className="text-sm text-neutral-500 mb-8 leading-relaxed">
+                            정말로 이 팀을 삭제하시겠습니까?<br />삭제된 데이터는 복구할 수 없습니다.
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowDeleteConfirm(false)}
+                                disabled={isDeleting}
+                                className="flex-1 py-3 px-4 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-bold rounded-xl transition-colors disabled:opacity-50"
+                            >
+                                취소
+                            </button>
+                            <button
+                                onClick={handleDeleteTeam}
+                                disabled={isDeleting}
+                                className="flex-1 py-3 px-4 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center"
+                            >
+                                {isDeleting ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : null}
+                                삭제
+                            </button>
                         </div>
                     </div>
-                </div>
+                </Modal>
             )}
 
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <Modal isOpen={true} onClose={onClose} className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
                 {/* Header */}
                 <div className="px-6 py-4 border-b border-slate-700 flex justify-between items-center bg-slate-800 sticky top-0 z-10 text-white">
                     <div className="flex items-center gap-3">
@@ -364,7 +364,7 @@ export default function TeamDetailModal({
                     <div className="w-4 h-4"></div>
                 </div>
 
-            </div>
-        </div>
+            </Modal>
+        </React.Fragment>
     );
 }

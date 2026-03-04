@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { UploadCloud, X, CheckCircle2, AlertCircle } from 'lucide-react';
+import Modal from './common/Modal';
 
 interface Props {
     mainRecordId: string;
@@ -131,76 +132,74 @@ export default function ReportUploadModal({ mainRecordId, teamName, expenseCateg
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-neutral-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden flex flex-col">
-                <div className="px-6 py-4 border-b border-neutral-100 flex items-center justify-between bg-neutral-50/50">
-                    <h3 className="text-lg font-bold text-neutral-900 flex items-center">
-                        <UploadCloud className="w-5 h-5 mr-2 text-indigo-600" />
-                        2차 증빙 서류 제출
-                    </h3>
-                    <button
-                        onClick={onClose}
-                        className="text-neutral-400 hover:text-neutral-600 transition-colors p-1 rounded-lg hover:bg-neutral-100"
-                    >
-                        <X className="w-5 h-5" />
-                    </button>
+        <Modal isOpen={true} onClose={onClose} className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden flex flex-col">
+            <div className="px-6 py-4 border-b border-neutral-100 flex items-center justify-between bg-neutral-50/50">
+                <h3 className="text-lg font-bold text-neutral-900 flex items-center">
+                    <UploadCloud className="w-5 h-5 mr-2 text-indigo-600" />
+                    2차 증빙 서류 제출
+                </h3>
+                <button
+                    onClick={onClose}
+                    className="text-neutral-400 hover:text-neutral-600 transition-colors p-1 rounded-lg hover:bg-neutral-100"
+                >
+                    <X className="w-5 h-5" />
+                </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="p-6 space-y-6">
+                <div className="bg-blue-50 text-blue-800 p-4 rounded-xl text-sm leading-relaxed border border-blue-100">
+                    <p className="font-semibold mb-1">제출 대상: [{expenseCategory}]</p>
+                    <p>해당 비목에 대한 <span className="font-bold underline decoration-blue-300 underline-offset-4">{config.columnName}</span> 파일을 양식에 맞게 업로드해 주세요.</p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="p-6 space-y-6">
-                    <div className="bg-blue-50 text-blue-800 p-4 rounded-xl text-sm leading-relaxed border border-blue-100">
-                        <p className="font-semibold mb-1">제출 대상: [{expenseCategory}]</p>
-                        <p>해당 비목에 대한 <span className="font-bold underline decoration-blue-300 underline-offset-4">{config.columnName}</span> 파일을 양식에 맞게 업로드해 주세요.</p>
+                {errorMsg && (
+                    <div className="flex items-start p-3 bg-red-50 text-red-600 rounded-lg text-sm font-medium border border-red-100">
+                        <AlertCircle className="w-4 h-4 mr-2 shrink-0 mt-0.5" />
+                        {errorMsg}
                     </div>
+                )}
 
-                    {errorMsg && (
-                        <div className="flex items-start p-3 bg-red-50 text-red-600 rounded-lg text-sm font-medium border border-red-100">
-                            <AlertCircle className="w-4 h-4 mr-2 shrink-0 mt-0.5" />
-                            {errorMsg}
-                        </div>
-                    )}
+                <div className="space-y-2">
+                    <label className="text-sm font-bold text-neutral-700 flex items-center">
+                        {config.columnName} 파일 선택
+                    </label>
+                    <input
+                        type="file"
+                        onChange={e => setFile(e.target.files?.[0] || null)}
+                        className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-200 shadow-sm text-neutral-900 focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all duration-200 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
+                    />
+                </div>
 
-                    <div className="space-y-2">
-                        <label className="text-sm font-bold text-neutral-700 flex items-center">
-                            {config.columnName} 파일 선택
-                        </label>
-                        <input
-                            type="file"
-                            onChange={e => setFile(e.target.files?.[0] || null)}
-                            className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-200 shadow-sm text-neutral-900 focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all duration-200 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
-                        />
-                    </div>
-
-                    <div className="pt-2 flex gap-3">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="flex-1 px-4 py-2.5 bg-white border border-neutral-200 text-neutral-700 font-semibold rounded-xl hover:bg-neutral-50 transition-colors"
-                        >
-                            취소
-                        </button>
-                        <button
-                            type="submit"
-                            disabled={isSubmitting || !file}
-                            className="flex-1 px-4 py-2.5 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center shadow-sm"
-                        >
-                            {isSubmitting ? (
-                                <>
-                                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                    업로드 중...
-                                </>
-                            ) : (
-                                <>
-                                    <CheckCircle2 className="w-4 h-4 mr-2" />
-                                    제출하기
-                                </>
-                            )}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
+                <div className="pt-2 flex gap-3">
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="flex-1 px-4 py-2.5 bg-white border border-neutral-200 text-neutral-700 font-semibold rounded-xl hover:bg-neutral-50 transition-colors"
+                    >
+                        취소
+                    </button>
+                    <button
+                        type="submit"
+                        disabled={isSubmitting || !file}
+                        className="flex-1 px-4 py-2.5 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center shadow-sm"
+                    >
+                        {isSubmitting ? (
+                            <>
+                                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                업로드 중...
+                            </>
+                        ) : (
+                            <>
+                                <CheckCircle2 className="w-4 h-4 mr-2" />
+                                제출하기
+                            </>
+                        )}
+                    </button>
+                </div>
+            </form>
+        </Modal>
     );
 }
