@@ -66,6 +66,7 @@ export default function TeamDetailModal({
             fee: parseInt(editFee.replace(/[^0-9]/g, ''), 10) || 0,
         });
         setIsSavingBudget(false);
+        alert("팀 정보가 성공적으로 수정되었습니다.");
     };
 
     const formatDate = (dateString: string) => {

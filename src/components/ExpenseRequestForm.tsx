@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Tag, LogOut, ChevronDown, CheckCircle2, Navigation, UploadCloud, ShoppingCart, Briefcase, UserCheck } from 'lucide-react';
+import { Tag, ChevronDown, CheckCircle2, Navigation, UploadCloud, ShoppingCart, Briefcase, UserCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -41,7 +41,7 @@ function numberToKorean(number: number): string {
 }
 
 export default function ExpenseRequestForm() {
-    const { user, logout } = useAuth();
+    const { user } = useAuth();
     const navigate = useNavigate();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
@@ -516,16 +516,7 @@ export default function ExpenseRequestForm() {
                 <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-neutral-100">
 
                     <div className="bg-gradient-to-r from-blue-600 to-indigo-700 px-8 py-10 text-white relative">
-                        <div className="absolute top-6 right-8">
-                            <button
-                                type="button"
-                                onClick={logout}
-                                className="inline-flex items-center text-sm font-medium text-white/80 hover:text-white bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-colors"
-                            >
-                                <LogOut className="w-4 h-4 mr-2" />
-                                로그아웃
-                            </button>
-                        </div>
+
                         <h2 className="text-3xl font-bold mb-2">MVP 제작비 신청서</h2>
                         <p className="text-blue-100/80">
                             성공적인 시제품 제작을 위한 비용 신청을 빠르고 간편하게 진행하세요.

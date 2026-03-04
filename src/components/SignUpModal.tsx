@@ -29,6 +29,12 @@ export default function SignUpModal({ onClose }: SignUpModalProps) {
             return;
         }
 
+        const phoneRegex = /^010-\d{4}-\d{4}$/;
+        if (!phoneRegex.test(contact)) {
+            setErrorMsg('올바른 전화번호 형식을 입력해주세요.');
+            return;
+        }
+
         if (password.length < 6 || !/^\d+$/.test(password)) {
             setErrorMsg('비밀번호는 6자리 이상의 숫자로 입력해주세요.');
             return;
