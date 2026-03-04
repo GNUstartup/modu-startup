@@ -229,7 +229,6 @@ export default function RecordDetailModal({ record, onClose, baseId, apiKey, ava
                         uploadedAttachments[key] = [{ url: fileUrl, filename: (file as File).name }];
                     } catch (err: any) {
                         console.warn(`파일 업로드 실패, 기존 파일 유지: ${err.message}`);
-                        showToast(`일부 파일 업로드에 실패했습니다. 기존 파일이 유지됩니다. (${err.message})`, 'error');
                         // 업로드 실패 시 기존 파일 유지
                         if ((f as any)[key] && Array.isArray((f as any)[key])) {
                             uploadedAttachments[key] = (f as any)[key] as Array<{ url: string, filename: string }>;
@@ -314,6 +313,10 @@ export default function RecordDetailModal({ record, onClose, baseId, apiKey, ava
                         patchFields[key] = uploadedAttachments[key];
                     }
                 });
+
+                if (isRejectedResubmission) {
+                    patchFields['상태'] = '반려 수정 완료';
+                }
 
                 const detailPatchResponse = await fetch(`https://api.airtable.com/v0/${baseId}/${encodeURIComponent(detailTableName)}`, {
                     method: 'PATCH',

@@ -32,6 +32,7 @@ export default function StudentDashboard() {
     const [selectedDetailRecord, setSelectedDetailRecord] = useState<ApplicationRecord | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
     const [deleteModalRecord, setDeleteModalRecord] = useState<ApplicationRecord | null>(null);
+    const [activeTab, setActiveTab] = useState<'records' | 'guide'>('records');
 
     const [teamBudgets, setTeamBudgets] = useState({
         total: user?.budget || 0,
@@ -63,7 +64,7 @@ export default function StudentDashboard() {
                 const dateFilter = `DATETIME_DIFF(CREATED_TIME(), '${deleteModalRecord.createdTime}', 'minutes') < 2`;
                 searchUrl.searchParams.append('filterByFormula', `AND({팀명} = '${f["팀명"]}', ${dateFilter})`);
                 searchUrl.searchParams.append('maxRecords', '1');
-                searchUrl.searchParams.append('v', Date.now().toString());
+                searchUrl.searchParams.append('update', Date.now().toString());
 
                 const resSearch = await fetch(searchUrl.toString(), {
                     headers: { 'Authorization': `Bearer ${apiKey}` },
@@ -116,7 +117,7 @@ export default function StudentDashboard() {
             const teamTableName = import.meta.env.VITE_AIRTABLE_TEAM_TABLE_NAME || '팀 기본 정보';
             const teamUrl = new URL(`https://api.airtable.com/v0/${baseId}/${encodeURIComponent(teamTableName)}`);
             teamUrl.searchParams.append('filterByFormula', `{팀명} = '${user.projectName}'`);
-            teamUrl.searchParams.append('v', Date.now().toString());
+            teamUrl.searchParams.append('update', Date.now().toString());
 
             const teamResponse = await fetch(teamUrl.toString(), {
                 headers: { 'Authorization': `Bearer ${apiKey}` },
@@ -140,7 +141,7 @@ export default function StudentDashboard() {
             // 2. Fetch records filtered by 팀명
             const url = new URL(`https://api.airtable.com/v0/${baseId}/${encodeURIComponent(mainTableName)}`);
             url.searchParams.append('filterByFormula', `{팀명} = '${user.projectName}'`);
-            url.searchParams.append('v', Date.now().toString());
+            url.searchParams.append('update', Date.now().toString());
 
             const response = await fetch(url.toString(), {
                 headers: {
@@ -347,10 +348,10 @@ export default function StudentDashboard() {
                     <div>
                         <h1 className="text-2xl font-bold text-neutral-900 flex items-center">
                             <FileText className="w-6 h-6 mr-2 text-indigo-600" />
-                            내 신청 내역
+                            MVP 제작비 신청
                         </h1>
                         <p className="mt-1 text-sm text-neutral-500">
-                            <span className="font-semibold text-indigo-600">{user?.projectName}</span> 팀이 제출한 MVP 제작비 신청 현황입니다.
+                            <span className="font-semibold text-indigo-600">{user?.projectName}</span> 팀의 신청 현황 및 프로그램 가이드입니다.
                         </p>
                     </div>
 
@@ -374,262 +375,283 @@ export default function StudentDashboard() {
                     </div>
                 )}
 
-                {/* Dashboard List */}
-                <div className="space-y-4 animate-in fade-in duration-500">
-
-                    <ProgramGuide />
-
-                    {/* 3 Summary KPI Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                        {/* 승인 금액 합계 */}
-                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-neutral-200 flex flex-col justify-center transition-all hover:shadow-md">
-                            <h3 className="text-sm font-semibold text-neutral-500 mb-2">승인 금액 합계</h3>
-                            <div className="text-blue-600" style={{ fontSize: '24px', fontWeight: 700 }}>
-                                {sumApproved.toLocaleString()} <span className="opacity-75" style={{ fontSize: '16px', fontWeight: 500 }}>원</span>
-                            </div>
-                        </div>
-
-                        {/* 신청 금액 합계 */}
-                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-neutral-200 flex flex-col justify-center transition-all hover:shadow-md">
-                            <h3 className="text-sm font-semibold text-neutral-500 mb-2">신청 금액 합계</h3>
-                            <div className="text-orange-500" style={{ fontSize: '24px', fontWeight: 700 }}>
-                                {sumPending.toLocaleString()} <span className="opacity-75" style={{ fontSize: '16px', fontWeight: 500 }}>원</span>
-                            </div>
-                        </div>
-
-                        {/* 잔액 */}
-                        <div className={`p-6 rounded-2xl shadow-sm border flex flex-col justify-center transition-all hover:shadow-md ${realBalance <= 0 ? 'bg-red-50 border-red-200' : 'bg-indigo-50 border-indigo-100'}`}>
-                            <h3 className={`text-sm font-semibold mb-2 ${realBalance <= 0 ? 'text-red-700' : 'text-indigo-700'}`}>잔액 (가용 예산)</h3>
-                            <div className={`${realBalance <= 0 ? 'text-red-600' : 'text-indigo-700'}`} style={{ fontSize: '24px', fontWeight: 700 }}>
-                                {realBalance.toLocaleString()} <span className="opacity-75" style={{ fontSize: '16px', fontWeight: 500 }}>원</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Global Category Summary Bar */}
-                    <div className="bg-white px-3 sm:px-4 py-3 w-full max-w-[100%] overflow-hidden rounded-2xl shadow-sm border border-neutral-200 flex items-center">
-                        <div className="flex flex-col mr-2 sm:mr-4 shrink-0">
-                            <span className="font-semibold text-neutral-500 text-[13px] whitespace-nowrap">비목별 소계</span>
-                            <span className="text-[11px] font-medium text-[#888888] mt-0.5 whitespace-nowrap">(신청·승인 / 계획)</span>
-                        </div>
-                        <div className="flex flex-1 overflow-hidden" style={{ gap: '8px' }}>
-                            <div className={`flex items-baseline justify-center pl-1 pr-2 sm:pr-3 py-1.5 box-border rounded-md flex-1 min-w-0 overflow-hidden ${globalYubi > budgetYubi && budgetYubi > 0 ? 'bg-red-50 text-red-500' : 'bg-[#E1F5FE] text-[#0288D1]'}`}>
-                                <span className="font-semibold text-[10.5px] sm:text-[11.5px] mr-0.5 sm:mr-1 shrink-0 whitespace-nowrap" style={{ letterSpacing: '-0.3px' }}>여비:</span>
-                                <span className="font-bold text-[11px] sm:text-[12px] truncate whitespace-nowrap" style={{ letterSpacing: '-0.5px' }}>{globalYubi.toLocaleString()} / <span className={`${globalYubi > budgetYubi && budgetYubi > 0 ? 'text-red-500/80' : 'text-[#0288D1]/70'}`}>{budgetYubi.toLocaleString()}</span></span>
-                            </div>
-                            <div className={`flex items-baseline justify-center pl-1 pr-2 sm:pr-3 py-1.5 box-border rounded-md flex-1 min-w-0 overflow-hidden ${globalJaeryo > budgetJaeryo && budgetJaeryo > 0 ? 'bg-red-50 text-red-500' : 'bg-[#E8F5E9] text-[#2E7D32]'}`}>
-                                <span className="font-semibold text-[10.5px] sm:text-[11.5px] mr-0.5 sm:mr-1 shrink-0 whitespace-nowrap" style={{ letterSpacing: '-0.3px' }}>재료비:</span>
-                                <span className="font-bold text-[11px] sm:text-[12px] truncate whitespace-nowrap" style={{ letterSpacing: '-0.5px' }}>{globalJaeryo.toLocaleString()} / <span className={`${globalJaeryo > budgetJaeryo && budgetJaeryo > 0 ? 'text-red-500/80' : 'text-[#2E7D32]/70'}`}>{budgetJaeryo.toLocaleString()}</span></span>
-                            </div>
-                            <div className={`flex items-baseline justify-center pl-1 pr-2 sm:pr-3 py-1.5 box-border rounded-md flex-1 min-w-0 overflow-hidden ${globalOiju > budgetOiju && budgetOiju > 0 ? 'bg-red-50 text-red-500' : 'bg-[#F3E5F5] text-[#7B1FA2]'}`}>
-                                <span className="font-semibold text-[10.5px] sm:text-[11.5px] mr-0.5 sm:mr-1 shrink-0 whitespace-nowrap" style={{ letterSpacing: '-0.3px' }}>외주용역비:</span>
-                                <span className="font-bold text-[11px] sm:text-[12px] truncate whitespace-nowrap" style={{ letterSpacing: '-0.5px' }}>{globalOiju.toLocaleString()} / <span className={`${globalOiju > budgetOiju && budgetOiju > 0 ? 'text-red-500/80' : 'text-[#7B1FA2]/70'}`}>{budgetOiju.toLocaleString()}</span></span>
-                            </div>
-                            <div className={`flex items-baseline justify-center pl-1 pr-2 sm:pr-3 py-1.5 box-border rounded-md flex-1 min-w-0 overflow-hidden ${globalJigeup > budgetJigeup && budgetJigeup > 0 ? 'bg-red-50 text-red-500' : 'bg-[#FFF8E1] text-[#F57F17]'}`}>
-                                <span className="font-semibold text-[10.5px] sm:text-[11.5px] mr-0.5 sm:mr-1 shrink-0 whitespace-nowrap" style={{ letterSpacing: '-0.3px' }}>지급수수료:</span>
-                                <span className="font-bold text-[11px] sm:text-[12px] truncate whitespace-nowrap" style={{ letterSpacing: '-0.5px' }}>{globalJigeup.toLocaleString()} / <span className={`${globalJigeup > budgetJigeup && budgetJigeup > 0 ? 'text-red-500/80' : 'text-[#F57F17]/70'}`}>{budgetJigeup.toLocaleString()}</span></span>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Top action row for table: Right aligned Subtotal */}
-                    <div className="flex justify-end">
-                        <div className="flex items-center px-4 py-2 bg-indigo-50/50 border border-indigo-100 rounded-xl">
-                            <span className="text-sm font-semibold text-indigo-900 mr-2">
-                                선택 영역 소계:
-                            </span>
-                            <span className="text-lg font-bold text-indigo-600">
-                                {filteredSubtotal.toLocaleString()}원
-                            </span>
-                        </div>
-                    </div>
-
-                    <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 overflow-hidden">
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-neutral-200">
-                                <thead className="bg-neutral-50">
-                                    <tr>
-                                        <th scope="col" className="px-6 py-4 text-center text-xs font-semibold text-neutral-500 uppercase tracking-wider whitespace-nowrap align-top w-20">
-                                            <button
-                                                onClick={() => setSortOrder(prev => (prev === 'desc' ? 'asc' : 'desc'))}
-                                                className="inline-flex items-center justify-center group focus:outline-none w-full"
-                                            >
-                                                연번
-                                                <ArrowDownUp className="ml-1 w-3 h-3 text-neutral-400 group-hover:text-neutral-600 transition-colors" />
-                                            </button>
-                                        </th>
-                                        <th scope="col" className="px-6 py-4 text-center text-xs font-semibold text-neutral-500 uppercase tracking-wider whitespace-nowrap align-top w-[18%]">신청일시</th>
-                                        <th scope="col" className="px-6 py-4 text-center text-xs font-semibold uppercase tracking-wider whitespace-nowrap align-top w-[18%]">
-                                            <div className="relative inline-flex items-center justify-center group cursor-pointer w-full" title="비목 필터">
-                                                <span className={`transition-colors ${selectedCategory !== '전체 비목' ? 'text-indigo-600 font-bold' : 'text-neutral-500'}`}>
-                                                    비목 {selectedCategory !== '전체 비목' && <span className="ml-1 font-medium bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded">({selectedCategory})</span>}
-                                                </span>
-                                                <ChevronDown
-                                                    className={`ml-1 w-[14px] h-[14px] transition-colors ${selectedCategory !== '전체 비목' ? 'text-indigo-500' : 'text-neutral-400 group-hover:text-neutral-600'}`}
-                                                />
-                                                <select
-                                                    value={selectedCategory}
-                                                    onChange={(e) => setSelectedCategory(e.target.value)}
-                                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                                >
-                                                    <option value="전체 비목">전체</option>
-                                                    {uniqueCategories.map(cat => (
-                                                        <option key={cat} value={cat}>{cat}</option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                        </th>
-                                        <th scope="col" className="px-6 py-4 text-center text-xs font-semibold text-neutral-500 uppercase tracking-wider whitespace-nowrap align-top w-[18%]">신청금액</th>
-                                        <th scope="col" className="px-6 py-4 text-center text-xs font-semibold uppercase tracking-wider whitespace-nowrap align-top w-[20%]">
-                                            <div className="relative inline-flex items-center justify-center group cursor-pointer w-full" title="상태 필터">
-                                                <span className={`transition-colors ${selectedStatus !== '전체 상태' ? 'text-indigo-600 font-bold' : 'text-neutral-500'}`}>
-                                                    진행 상태 {selectedStatus !== '전체 상태' && <span className="ml-1 font-medium bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded">({selectedStatus})</span>}
-                                                </span>
-                                                <ChevronDown
-                                                    className={`ml-1 w-[14px] h-[14px] transition-colors ${selectedStatus !== '전체 상태' ? 'text-indigo-500' : 'text-neutral-400 group-hover:text-neutral-600'}`}
-                                                />
-                                                <select
-                                                    value={selectedStatus}
-                                                    onChange={(e) => setSelectedStatus(e.target.value)}
-                                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                                >
-                                                    <option value="전체 상태">전체</option>
-                                                    {uniqueStatuses.map(status => (
-                                                        <option key={status} value={status}>
-                                                            {status}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                        </th>
-                                        <th scope="col" className="px-6 py-4 text-center text-xs font-semibold text-neutral-500 uppercase tracking-wider whitespace-nowrap align-top w-[140px]">관리</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="bg-white divide-y divide-neutral-100">
-                                    {isLoading && records.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={5} className="text-center py-24">
-                                                <RefreshCw className="mx-auto w-8 h-8 text-indigo-500 animate-spin mb-3" />
-                                                <span className="text-neutral-500 font-medium">내역을 불러오는 중입니다...</span>
-                                            </td>
-                                        </tr>
-                                    ) : records.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={5} className="text-center py-24 bg-neutral-50/30">
-                                                <FileText className="mx-auto h-12 w-12 text-neutral-300 mb-3" />
-                                                <h3 className="text-sm font-semibold text-neutral-900">제출된 신청 내역이 없습니다</h3>
-                                                <p className="mt-1 text-sm text-neutral-500">새로운 MVP 제작비를 신청해 보세요.</p>
-                                            </td>
-                                        </tr>
-                                    ) : filteredRecords.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={5} className="text-center py-16 bg-neutral-50/30">
-                                                <FileText className="mx-auto h-10 w-10 text-neutral-300 mb-3" />
-                                                <h3 className="text-sm font-semibold text-neutral-900">조건에 맞는 내역이 없습니다</h3>
-                                                <p className="mt-1 text-sm text-neutral-500">다른 비목이나 상태를 선택하거나 새로운 신청을 진행해 보세요.</p>
-                                            </td>
-                                        </tr>
-                                    ) : (
-                                        filteredRecords.map((record) => {
-                                            const f = record.fields;
-                                            const isUploadReady = f["상태"] === '완료 서류 첨부 대기 중' || f["상태"] === '완료 서류 반려';
-
-                                            return (
-                                                <tr key={record.id} className="hover:bg-neutral-50/50 transition-colors">
-                                                    <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-semibold text-neutral-700">
-                                                        {record.seqNo}
-                                                    </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                                                        <div className="flex flex-col items-center justify-center">
-                                                            {(() => {
-                                                                const editTimeStr = (f["신청 일시"] as string) || (f["신청일시"] as string);
-                                                                const createdTimeStr = record.createdTime;
-
-                                                                const existingHistoryText = f["수정 이력"] || '';
-                                                                const logLines = existingHistoryText ? existingHistoryText.split('\n').filter((l: string) => l.trim().length > 0) : [];
-                                                                const actualEditCount = logLines.length >= 2 ? logLines.length - 1 : 0;
-                                                                const isModified = actualEditCount > 0;
-
-                                                                const displayTime = editTimeStr ? formatShortDate(editTimeStr) : formatShortDate(createdTimeStr);
-                                                                return (
-                                                                    <>
-                                                                        <span className="text-sm font-medium text-neutral-600">{displayTime}</span>
-                                                                        {isModified ? (
-                                                                            <span className="text-[11px] text-blue-500 mt-0.5 font-bold tracking-tight whitespace-nowrap">수정됨({actualEditCount})</span>
-                                                                        ) : null}
-                                                                    </>
-                                                                );
-                                                            })()}
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                                                        {getCategoryBadge(f["비목"])}
-                                                    </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                                                        <div className="flex flex-col items-center justify-center">
-                                                            <div>
-                                                                <span className="text-sm font-bold text-neutral-900">
-                                                                    {f["신청금액"] ? f["신청금액"].toLocaleString() : 0}
-                                                                </span>
-                                                                <span className="text-xs text-neutral-500 ml-1">원</span>
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                                                        {getStatusBadge(f["상태"])}
-                                                    </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-center w-[140px]">
-                                                        <div className="flex flex-row space-x-2 items-center justify-center w-full">
-                                                            <div className={`flex flex-row space-x-2 items-center justify-center ${isUploadReady ? 'w-auto' : 'w-full'}`}>
-                                                                <button
-                                                                    onClick={() => setSelectedDetailRecord(record)}
-                                                                    title="신청서 보기"
-                                                                    className="relative inline-flex items-center justify-center px-3 py-1.5 border border-indigo-200 rounded-lg text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition-colors shadow-sm whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 h-8"
-                                                                >
-                                                                    🔍 신청서 보기
-                                                                    {f["상태"] === '반려' && (
-                                                                        <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                                                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                                                            <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-                                                                        </span>
-                                                                    )}
-                                                                </button>
-                                                                {isUploadReady && (
-                                                                    <button
-                                                                        onClick={() => setUploadModalRecord({ id: record.id, category: f["비목"] || '' })}
-                                                                        title="완료 보고서 첨부"
-                                                                        className="relative inline-flex items-center justify-center w-8 h-8 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200 rounded-lg shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 flex-shrink-0"
-                                                                    >
-                                                                        <UploadCloud className="w-4 h-4" />
-                                                                        {f["상태"] === '완료 서류 반려' || f["상태"] === '완료 서류 첨부 대기 중' ? (
-                                                                            <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
-                                                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                                                                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
-                                                                            </span>
-                                                                        ) : null}
-                                                                    </button>
-                                                                )}
-                                                                {f["상태"] === '담당자 확인 전' && (
-                                                                    <button
-                                                                        onClick={() => setDeleteModalRecord(record)}
-                                                                        title="삭제"
-                                                                        className="inline-flex items-center justify-center p-1.5 border border-red-200 rounded-lg text-red-600 bg-red-50 hover:bg-red-100 transition-colors shadow-sm h-8 w-8 flex-shrink-0"
-                                                                    >
-                                                                        <Trash2 className="w-4 h-4" />
-                                                                    </button>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                {/* Tabs Segment */}
+                <div className="flex space-x-1 bg-neutral-200/50 p-1 rounded-xl w-fit">
+                    <button
+                        onClick={() => setActiveTab('records')}
+                        className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${activeTab === 'records' ? 'bg-white text-indigo-700 shadow-sm' : 'text-neutral-600 hover:text-neutral-900'}`}
+                    >
+                        내 신청 내역
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('guide')}
+                        className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${activeTab === 'guide' ? 'bg-white text-indigo-700 shadow-sm' : 'text-neutral-600 hover:text-neutral-900'}`}
+                    >
+                        프로그램 안내
+                    </button>
                 </div>
+
+                {activeTab === 'guide' ? (
+                    <div className="animate-in fade-in duration-500">
+                        <ProgramGuide />
+                    </div>
+                ) : (
+                    <div className="space-y-4 animate-in fade-in duration-500">
+
+
+
+                        {/* 3 Summary KPI Cards */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                            {/* 승인 금액 합계 */}
+                            <div className="bg-white p-6 rounded-2xl shadow-sm border border-neutral-200 flex flex-col justify-center transition-all hover:shadow-md">
+                                <h3 className="text-sm font-semibold text-neutral-500 mb-2">승인 금액 합계</h3>
+                                <div className="text-blue-600" style={{ fontSize: '24px', fontWeight: 700 }}>
+                                    {sumApproved.toLocaleString()} <span className="opacity-75" style={{ fontSize: '16px', fontWeight: 500 }}>원</span>
+                                </div>
+                            </div>
+
+                            {/* 신청 금액 합계 */}
+                            <div className="bg-white p-6 rounded-2xl shadow-sm border border-neutral-200 flex flex-col justify-center transition-all hover:shadow-md">
+                                <h3 className="text-sm font-semibold text-neutral-500 mb-2">신청 금액 합계</h3>
+                                <div className="text-orange-500" style={{ fontSize: '24px', fontWeight: 700 }}>
+                                    {sumPending.toLocaleString()} <span className="opacity-75" style={{ fontSize: '16px', fontWeight: 500 }}>원</span>
+                                </div>
+                            </div>
+
+                            {/* 잔액 */}
+                            <div className={`p-6 rounded-2xl shadow-sm border flex flex-col justify-center transition-all hover:shadow-md ${realBalance <= 0 ? 'bg-red-50 border-red-200' : 'bg-indigo-50 border-indigo-100'}`}>
+                                <h3 className={`text-sm font-semibold mb-2 ${realBalance <= 0 ? 'text-red-700' : 'text-indigo-700'}`}>잔액 (가용 예산)</h3>
+                                <div className={`${realBalance <= 0 ? 'text-red-600' : 'text-indigo-700'}`} style={{ fontSize: '24px', fontWeight: 700 }}>
+                                    {realBalance.toLocaleString()} <span className="opacity-75" style={{ fontSize: '16px', fontWeight: 500 }}>원</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Global Category Summary Bar */}
+                        <div className="bg-white px-3 sm:px-4 py-3 w-full max-w-[100%] overflow-hidden rounded-2xl shadow-sm border border-neutral-200 flex items-center">
+                            <div className="flex flex-col mr-2 sm:mr-4 shrink-0">
+                                <span className="font-semibold text-neutral-500 text-[13px] whitespace-nowrap">비목별 소계</span>
+                                <span className="text-[11px] font-medium text-[#888888] mt-0.5 whitespace-nowrap">(신청·승인 / 계획)</span>
+                            </div>
+                            <div className="flex flex-1 overflow-hidden" style={{ gap: '8px' }}>
+                                <div className={`flex items-baseline justify-center pl-1 pr-2 sm:pr-3 py-1.5 box-border rounded-md flex-1 min-w-0 overflow-hidden ${globalYubi > budgetYubi && budgetYubi > 0 ? 'bg-red-50 text-red-500' : 'bg-[#E1F5FE] text-[#0288D1]'}`}>
+                                    <span className="font-semibold text-[10.5px] sm:text-[11.5px] mr-0.5 sm:mr-1 shrink-0 whitespace-nowrap" style={{ letterSpacing: '-0.3px' }}>여비:</span>
+                                    <span className="font-bold text-[11px] sm:text-[12px] truncate whitespace-nowrap" style={{ letterSpacing: '-0.5px' }}>{globalYubi.toLocaleString()} / <span className={`${globalYubi > budgetYubi && budgetYubi > 0 ? 'text-red-500/80' : 'text-[#0288D1]/70'}`}>{budgetYubi.toLocaleString()}</span></span>
+                                </div>
+                                <div className={`flex items-baseline justify-center pl-1 pr-2 sm:pr-3 py-1.5 box-border rounded-md flex-1 min-w-0 overflow-hidden ${globalJaeryo > budgetJaeryo && budgetJaeryo > 0 ? 'bg-red-50 text-red-500' : 'bg-[#E8F5E9] text-[#2E7D32]'}`}>
+                                    <span className="font-semibold text-[10.5px] sm:text-[11.5px] mr-0.5 sm:mr-1 shrink-0 whitespace-nowrap" style={{ letterSpacing: '-0.3px' }}>재료비:</span>
+                                    <span className="font-bold text-[11px] sm:text-[12px] truncate whitespace-nowrap" style={{ letterSpacing: '-0.5px' }}>{globalJaeryo.toLocaleString()} / <span className={`${globalJaeryo > budgetJaeryo && budgetJaeryo > 0 ? 'text-red-500/80' : 'text-[#2E7D32]/70'}`}>{budgetJaeryo.toLocaleString()}</span></span>
+                                </div>
+                                <div className={`flex items-baseline justify-center pl-1 pr-2 sm:pr-3 py-1.5 box-border rounded-md flex-1 min-w-0 overflow-hidden ${globalOiju > budgetOiju && budgetOiju > 0 ? 'bg-red-50 text-red-500' : 'bg-[#F3E5F5] text-[#7B1FA2]'}`}>
+                                    <span className="font-semibold text-[10.5px] sm:text-[11.5px] mr-0.5 sm:mr-1 shrink-0 whitespace-nowrap" style={{ letterSpacing: '-0.3px' }}>외주용역비:</span>
+                                    <span className="font-bold text-[11px] sm:text-[12px] truncate whitespace-nowrap" style={{ letterSpacing: '-0.5px' }}>{globalOiju.toLocaleString()} / <span className={`${globalOiju > budgetOiju && budgetOiju > 0 ? 'text-red-500/80' : 'text-[#7B1FA2]/70'}`}>{budgetOiju.toLocaleString()}</span></span>
+                                </div>
+                                <div className={`flex items-baseline justify-center pl-1 pr-2 sm:pr-3 py-1.5 box-border rounded-md flex-1 min-w-0 overflow-hidden ${globalJigeup > budgetJigeup && budgetJigeup > 0 ? 'bg-red-50 text-red-500' : 'bg-[#FFF8E1] text-[#F57F17]'}`}>
+                                    <span className="font-semibold text-[10.5px] sm:text-[11.5px] mr-0.5 sm:mr-1 shrink-0 whitespace-nowrap" style={{ letterSpacing: '-0.3px' }}>지급수수료:</span>
+                                    <span className="font-bold text-[11px] sm:text-[12px] truncate whitespace-nowrap" style={{ letterSpacing: '-0.5px' }}>{globalJigeup.toLocaleString()} / <span className={`${globalJigeup > budgetJigeup && budgetJigeup > 0 ? 'text-red-500/80' : 'text-[#F57F17]/70'}`}>{budgetJigeup.toLocaleString()}</span></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Top action row for table: Right aligned Subtotal */}
+                        <div className="flex justify-end">
+                            <div className="flex items-center px-4 py-2 bg-indigo-50/50 border border-indigo-100 rounded-xl">
+                                <span className="text-sm font-semibold text-indigo-900 mr-2">
+                                    선택 영역 소계:
+                                </span>
+                                <span className="text-lg font-bold text-indigo-600">
+                                    {filteredSubtotal.toLocaleString()}원
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full divide-y divide-neutral-200">
+                                    <thead className="bg-neutral-50">
+                                        <tr>
+                                            <th scope="col" className="px-6 py-4 text-center text-xs font-semibold text-neutral-500 uppercase tracking-wider whitespace-nowrap align-top w-20">
+                                                <button
+                                                    onClick={() => setSortOrder(prev => (prev === 'desc' ? 'asc' : 'desc'))}
+                                                    className="inline-flex items-center justify-center group focus:outline-none w-full"
+                                                >
+                                                    연번
+                                                    <ArrowDownUp className="ml-1 w-3 h-3 text-neutral-400 group-hover:text-neutral-600 transition-colors" />
+                                                </button>
+                                            </th>
+                                            <th scope="col" className="px-6 py-4 text-center text-xs font-semibold text-neutral-500 uppercase tracking-wider whitespace-nowrap align-top w-[18%]">신청일시</th>
+                                            <th scope="col" className="px-6 py-4 text-center text-xs font-semibold uppercase tracking-wider whitespace-nowrap align-top w-[18%]">
+                                                <div className="relative inline-flex items-center justify-center group cursor-pointer w-full" title="비목 필터">
+                                                    <span className={`transition-colors ${selectedCategory !== '전체 비목' ? 'text-indigo-600 font-bold' : 'text-neutral-500'}`}>
+                                                        비목 {selectedCategory !== '전체 비목' && <span className="ml-1 font-medium bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded">({selectedCategory})</span>}
+                                                    </span>
+                                                    <ChevronDown
+                                                        className={`ml-1 w-[14px] h-[14px] transition-colors ${selectedCategory !== '전체 비목' ? 'text-indigo-500' : 'text-neutral-400 group-hover:text-neutral-600'}`}
+                                                    />
+                                                    <select
+                                                        value={selectedCategory}
+                                                        onChange={(e) => setSelectedCategory(e.target.value)}
+                                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                                    >
+                                                        <option value="전체 비목">전체</option>
+                                                        {uniqueCategories.map(cat => (
+                                                            <option key={cat} value={cat}>{cat}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                            </th>
+                                            <th scope="col" className="px-6 py-4 text-center text-xs font-semibold text-neutral-500 uppercase tracking-wider whitespace-nowrap align-top w-[18%]">신청금액</th>
+                                            <th scope="col" className="px-6 py-4 text-center text-xs font-semibold uppercase tracking-wider whitespace-nowrap align-top w-[20%]">
+                                                <div className="relative inline-flex items-center justify-center group cursor-pointer w-full" title="상태 필터">
+                                                    <span className={`transition-colors ${selectedStatus !== '전체 상태' ? 'text-indigo-600 font-bold' : 'text-neutral-500'}`}>
+                                                        진행 상태 {selectedStatus !== '전체 상태' && <span className="ml-1 font-medium bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded">({selectedStatus})</span>}
+                                                    </span>
+                                                    <ChevronDown
+                                                        className={`ml-1 w-[14px] h-[14px] transition-colors ${selectedStatus !== '전체 상태' ? 'text-indigo-500' : 'text-neutral-400 group-hover:text-neutral-600'}`}
+                                                    />
+                                                    <select
+                                                        value={selectedStatus}
+                                                        onChange={(e) => setSelectedStatus(e.target.value)}
+                                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                                    >
+                                                        <option value="전체 상태">전체</option>
+                                                        {uniqueStatuses.map(status => (
+                                                            <option key={status} value={status}>
+                                                                {status}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                            </th>
+                                            <th scope="col" className="px-6 py-4 text-center text-xs font-semibold text-neutral-500 uppercase tracking-wider whitespace-nowrap align-top w-[140px]">관리</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-neutral-100">
+                                        {isLoading && records.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={5} className="text-center py-24">
+                                                    <RefreshCw className="mx-auto w-8 h-8 text-indigo-500 animate-spin mb-3" />
+                                                    <span className="text-neutral-500 font-medium">내역을 불러오는 중입니다...</span>
+                                                </td>
+                                            </tr>
+                                        ) : records.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={5} className="text-center py-24 bg-neutral-50/30">
+                                                    <FileText className="mx-auto h-12 w-12 text-neutral-300 mb-3" />
+                                                    <h3 className="text-sm font-semibold text-neutral-900">제출된 신청 내역이 없습니다</h3>
+                                                    <p className="mt-1 text-sm text-neutral-500">새로운 MVP 제작비를 신청해 보세요.</p>
+                                                </td>
+                                            </tr>
+                                        ) : filteredRecords.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={5} className="text-center py-16 bg-neutral-50/30">
+                                                    <FileText className="mx-auto h-10 w-10 text-neutral-300 mb-3" />
+                                                    <h3 className="text-sm font-semibold text-neutral-900">조건에 맞는 내역이 없습니다</h3>
+                                                    <p className="mt-1 text-sm text-neutral-500">다른 비목이나 상태를 선택하거나 새로운 신청을 진행해 보세요.</p>
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            filteredRecords.map((record) => {
+                                                const f = record.fields;
+                                                const isUploadReady = f["상태"] === '완료 서류 첨부 대기 중' || f["상태"] === '완료 서류 반려';
+
+                                                return (
+                                                    <tr key={record.id} className="hover:bg-neutral-50/50 transition-colors">
+                                                        <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-semibold text-neutral-700">
+                                                            {record.seqNo}
+                                                        </td>
+                                                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                                                            <div className="flex flex-col items-center justify-center">
+                                                                {(() => {
+                                                                    const editTimeStr = (f["신청 일시"] as string) || (f["신청일시"] as string);
+                                                                    const createdTimeStr = record.createdTime;
+
+                                                                    const existingHistoryText = f["수정 이력"] || '';
+                                                                    const logLines = existingHistoryText ? existingHistoryText.split('\n').filter((l: string) => l.trim().length > 0) : [];
+                                                                    const actualEditCount = logLines.length >= 2 ? logLines.length - 1 : 0;
+                                                                    const isModified = actualEditCount > 0;
+
+                                                                    const displayTime = editTimeStr ? formatShortDate(editTimeStr) : formatShortDate(createdTimeStr);
+                                                                    return (
+                                                                        <>
+                                                                            <span className="text-sm font-medium text-neutral-600">{displayTime}</span>
+                                                                            {isModified ? (
+                                                                                <span className="text-[11px] text-blue-500 mt-0.5 font-bold tracking-tight whitespace-nowrap">수정됨({actualEditCount})</span>
+                                                                            ) : null}
+                                                                        </>
+                                                                    );
+                                                                })()}
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                                                            {getCategoryBadge(f["비목"])}
+                                                        </td>
+                                                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                                                            <div className="flex flex-col items-center justify-center">
+                                                                <div>
+                                                                    <span className="text-sm font-bold text-neutral-900">
+                                                                        {f["신청금액"] ? f["신청금액"].toLocaleString() : 0}
+                                                                    </span>
+                                                                    <span className="text-xs text-neutral-500 ml-1">원</span>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                                                            {getStatusBadge(f["상태"])}
+                                                        </td>
+                                                        <td className="px-6 py-4 whitespace-nowrap text-center w-[140px]">
+                                                            <div className="flex flex-row space-x-2 items-center justify-center w-full">
+                                                                <div className={`flex flex-row space-x-2 items-center justify-center ${isUploadReady ? 'w-auto' : 'w-full'}`}>
+                                                                    <button
+                                                                        onClick={() => setSelectedDetailRecord(record)}
+                                                                        title="신청서 보기"
+                                                                        className="relative inline-flex items-center justify-center px-3 py-1.5 border border-indigo-200 rounded-lg text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition-colors shadow-sm whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 h-8"
+                                                                    >
+                                                                        🔍 신청서 보기
+                                                                        {f["상태"] === '반려' && (
+                                                                            <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                                                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                                                                <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                                                                            </span>
+                                                                        )}
+                                                                    </button>
+                                                                    {isUploadReady && (
+                                                                        <button
+                                                                            onClick={() => setUploadModalRecord({ id: record.id, category: f["비목"] || '' })}
+                                                                            title="완료 보고서 첨부"
+                                                                            className="relative inline-flex items-center justify-center w-8 h-8 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200 rounded-lg shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 flex-shrink-0"
+                                                                        >
+                                                                            <UploadCloud className="w-4 h-4" />
+                                                                            {f["상태"] === '완료 서류 반려' || f["상태"] === '완료 서류 첨부 대기 중' ? (
+                                                                                <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+                                                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                                                                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+                                                                                </span>
+                                                                            ) : null}
+                                                                        </button>
+                                                                    )}
+                                                                    {f["상태"] === '담당자 확인 전' && (
+                                                                        <button
+                                                                            onClick={() => setDeleteModalRecord(record)}
+                                                                            title="삭제"
+                                                                            className="inline-flex items-center justify-center p-1.5 border border-red-200 rounded-lg text-red-600 bg-red-50 hover:bg-red-100 transition-colors shadow-sm h-8 w-8 flex-shrink-0"
+                                                                        >
+                                                                            <Trash2 className="w-4 h-4" />
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Phase 2 Report Upload Modal */}

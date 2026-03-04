@@ -12,8 +12,12 @@ export default function ProgramGuide() {
                 <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 flex items-start">
                     <AlertCircle className="w-5 h-5 text-red-500 mr-3 mt-0.5 flex-shrink-0" />
                     <div>
-                        <h4 className="text-sm font-bold text-red-800 mb-1">전체 구조: 사업단 구매대행 방식</h4>
-                        <p className="text-sm text-red-700">본 프로그램의 모든 예산 집행은 <strong>사업단 구매대행 방식</strong>으로 진행됩니다. 학생(팀) 개인 카드로 선결제 후 청구하는 방식은 <strong>절대 불가</strong>하오니 유의하시기 바랍니다.</p>
+                        <h4 className="text-sm font-bold text-red-800 mb-1">사업비 성격 및 유의사항</h4>
+                        <p className="text-sm text-red-700">
+                            본 프로그램은 단순 지원금이 아닌 <strong>정부 예산 '사업비'</strong>입니다.<br />
+                            모든 예산 집행은 <strong>사업단 구매대행 방식 원칙</strong>으로 진행됩니다.<br />
+                            학생(팀) 개인 카드로 선결제 후 청구하는 방식은 <strong>절대 불가</strong>하며, PC 등 자산성 물품 구매도 불가하오니 유의하시기 바랍니다.
+                        </p>
                     </div>
                 </div>
 
@@ -35,6 +39,7 @@ export default function ProgramGuide() {
                                     시외교통비
                                 </td>
                                 <td className="px-4 py-3 text-sm text-neutral-600">
+                                    필수 서류: <strong>출장보고서 등</strong><br />
                                     목적지 및 일정 제출 → 담당자 확인 → 영수증 증빙 (시외버스, KTX 등)
                                 </td>
                             </tr>
@@ -46,6 +51,7 @@ export default function ProgramGuide() {
                                     시제품 제작 소요 재료
                                 </td>
                                 <td className="px-4 py-3 text-sm text-neutral-600">
+                                    필수 서류: <strong>구매요청서 등</strong><br />
                                     견적 및 링크 제출 → 담당자 대행 구매 → 수령 확인 및 결과보고서 제출
                                 </td>
                             </tr>
@@ -57,6 +63,7 @@ export default function ProgramGuide() {
                                     시제품 고도화 (디자인, 개발 등)
                                 </td>
                                 <td className="px-4 py-3 text-sm text-neutral-600">
+                                    필수 서류: <strong>계약서 등</strong><br />
                                     과업지시서 및 견적 제출 → 3자 계약 체결 → 결과물 검수 및 잔금 지급
                                 </td>
                             </tr>
@@ -87,8 +94,8 @@ export default function ProgramGuide() {
                     <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-4 flex items-start">
                         <Calendar className="w-5 h-5 text-neutral-600 mr-3 flex-shrink-0" />
                         <div>
-                            <h4 className="text-sm font-bold text-neutral-900 mb-1">최종 집행 기한</h4>
-                            <p className="text-sm text-neutral-600">본 프로그램의 최종 예산 집행 마감일은 <strong>12월 31일</strong>입니다. 마감일 이후에는 어떠한 결제도 불가합니다.</p>
+                            <h4 className="text-sm font-bold text-neutral-900 mb-1">최종 집행 기한 및 집행 가이드</h4>
+                            <p className="text-sm text-neutral-600">본 프로그램의 모든 지출은 <strong>12월 31일까지 필수적으로 완료</strong>되어야 합니다. 마감일 이후에는 어떠한 결제도 불가합니다.</p>
                         </div>
                     </div>
                 </div>
