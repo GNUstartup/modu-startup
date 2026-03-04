@@ -209,13 +209,13 @@ export default function ExpenseRequestForm() {
             const uploadToTmp = async (file: File) => {
                 const formData = new FormData();
                 formData.append('file', file);
-                const res = await fetch('https://tmpfiles.org/api/v1/upload', {
+                const res = await fetch('https://file.io', {
                     method: 'POST',
                     body: formData
                 });
                 const data = await res.json();
-                if (!res.ok || data.status !== 'success') throw new Error('파일 업로드 실패');
-                return data.data.url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
+                if (!res.ok || !data.success) throw new Error('파일 업로드 실패');
+                return data.link;
             };
 
             try {

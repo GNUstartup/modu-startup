@@ -50,16 +50,16 @@ export default function ReportUploadModal({ mainRecordId, teamName, expenseCateg
         try {
             if (!baseId || !apiKey) throw new Error('API 연동 설정 오류');
 
-            // 1. Upload file to tmpfiles
+            // 1. Upload file to file.io
             const formData = new FormData();
             formData.append('file', file);
-            const resTmp = await fetch('https://tmpfiles.org/api/v1/upload', {
+            const resTmp = await fetch('https://file.io', {
                 method: 'POST',
                 body: formData
             });
             const dataTmp = await resTmp.json();
-            if (!resTmp.ok || dataTmp.status !== 'success') throw new Error('파일 업로드 실패 (임시 서버)');
-            const fileUrl = dataTmp.data.url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
+            if (!resTmp.ok || !dataTmp.success) throw new Error('파일 업로드 실패 (임시 서버)');
+            const fileUrl = dataTmp.link;
 
             // 2. Find the Detail Record ID using teamName
             const searchUrl = new URL(`https://api.airtable.com/v0/${baseId}/${encodeURIComponent(config.tableName)}`);

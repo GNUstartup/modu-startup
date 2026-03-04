@@ -214,7 +214,7 @@ export default function RecordDetailModal({ record, onClose, baseId, apiKey, ava
                     try {
                         const formData = new FormData();
                         formData.append('file', file);
-                        const uploadRes = await fetch('https://tmpfiles.org/api/v1/upload', {
+                        const uploadRes = await fetch('https://file.io', {
                             method: 'POST',
                             body: formData
                         });
@@ -222,8 +222,8 @@ export default function RecordDetailModal({ record, onClose, baseId, apiKey, ava
                         if (!uploadRes.ok) throw new Error(`[임시 파일 서버 연결 실패] Status: ${uploadRes.status}`);
                         const result = await uploadRes.json();
 
-                        if (result.status === 'success' && result.data?.url) {
-                            const fileUrl = result.data.url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
+                        if (result.success && result.link) {
+                            const fileUrl = result.link;
 
                             // URL 유효성 검사 (Airtable 전송 전)
                             try {
