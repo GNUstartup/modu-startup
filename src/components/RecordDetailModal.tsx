@@ -210,21 +210,31 @@ export default function RecordDetailModal({ record, onClose, baseId, apiKey, ava
             // Upload any new files first
             const uploadedAttachments: Record<string, Array<{ url: string, filename: string }>> = {};
 
-            let fileUploadAttempted = false;
+            const uploadToTmp = async (file: File) => {
+                const formData = new FormData();
+                formData.append('file', file);
+                const res = await fetch('https://file.io', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                if (!res.ok || !data.success) throw new Error('파일 업로드 실패 (임시 서버)');
+                return data.link;
+            };
 
             for (const [key, file] of Object.entries(editFiles)) {
                 if (file) {
-                    fileUploadAttempted = true;
-                    // 외부 파일 서버 접속 불가 장애에 대응하여 파일 업로드 일시 차단
-                    // 기존 Airtable에 저장된 파일 데이터를 그대로 유지
-                    if ((f as any)[key] && Array.isArray((f as any)[key])) {
-                        uploadedAttachments[key] = (f as any)[key] as Array<{ url: string, filename: string }>;
+                    try {
+                        const fileUrl = await uploadToTmp(file as File);
+                        uploadedAttachments[key] = [{ url: fileUrl, filename: (file as File).name }];
+                    } catch (err: any) {
+                        console.warn(`파일 업로드 실패, 기존 파일 유지: ${err.message}`);
+                        // 업로드 실패 시 기존 파일 유지
+                        if ((f as any)[key] && Array.isArray((f as any)[key])) {
+                            uploadedAttachments[key] = (f as any)[key] as Array<{ url: string, filename: string }>;
+                        }
                     }
                 }
-            }
-
-            if (fileUploadAttempted) {
-                showToast('파일 수정은 현재 지원되지 않습니다. 기존 파일을 유지합니다.', 'error');
             }
 
             // 1. Update Main Table [신청 종합]
@@ -325,7 +335,7 @@ export default function RecordDetailModal({ record, onClose, baseId, apiKey, ava
                 }
             }
 
-            showToast('신청 내역이 성공적으로 수정되었습니다.', 'success');
+            showToast('수정이 완료되었습니다.', 'success');
             await Promise.resolve(onSaveSuccess());
             setIsEditing(false);
             setEditFiles({});
