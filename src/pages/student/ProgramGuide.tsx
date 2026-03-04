@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Info, AlertCircle, FileText, CheckCircle2, ChevronRight, ChevronDown } from 'lucide-react';
+import { Info, AlertCircle, FileText, CheckCircle2, ChevronRight, ChevronDown, ArrowRight } from 'lucide-react';
 
 export default function ProgramGuide() {
     const [openSection, setOpenSection] = useState<string | null>('재료비'); // Default open
@@ -8,16 +8,38 @@ export default function ProgramGuide() {
         setOpenSection(openSection === section ? null : section);
     };
 
+    // Helper component for Process Flow
+    const ProcessFlow = ({ steps }: { steps: string[] }) => (
+        <div className="flex flex-wrap items-center gap-2 mb-4 bg-indigo-50/50 p-3 rounded-lg border border-indigo-100/50">
+            {steps.map((step, index) => (
+                <div key={index} className="flex items-center">
+                    <span className="font-semibold text-sm text-indigo-800 bg-white px-3 py-1.5 rounded-full shadow-sm border border-indigo-100">
+                        {step}
+                    </span>
+                    {index < steps.length - 1 && (
+                        <ArrowRight className="w-4 h-4 text-indigo-400 mx-2" />
+                    )}
+                </div>
+            ))}
+        </div>
+    );
+
     return (
         <div className="min-h-screen bg-neutral-50 py-10 px-4 sm:px-6 lg:px-8 font-sans">
             <div className="max-w-5xl mx-auto space-y-6">
 
                 {/* Header Section */}
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-neutral-200">
-                    <h1 className="text-2xl font-bold text-neutral-900 flex items-center">
+                    <h1 className="text-2xl font-bold text-neutral-900 flex items-center mb-4">
                         <Info className="w-6 h-6 mr-2 text-indigo-600" />
                         프로그램 안내 및 유의사항
                     </h1>
+
+                    <div className="mb-4">
+                        <h4 className="text-sm font-bold text-neutral-700 mb-2">공통 진행 프로세스</h4>
+                        <ProcessFlow steps={['신청(참가자)', '검토(사업단)', '진행(사업단)', '보고(참가자)']} />
+                    </div>
+
                     <p className="mt-2 text-sm text-neutral-500">
                         성장 지원금 집행을 위한 상세 가이드라인과 필수 제출 서류 안내입니다.
                     </p>
@@ -61,6 +83,50 @@ export default function ProgramGuide() {
                     </div>
                     <div className="divide-y divide-neutral-100">
 
+                        {/* 여비 Accordion */}
+                        <div>
+                            <button
+                                onClick={() => toggleSection('여비')}
+                                className="w-full text-left px-6 py-4 flex items-center justify-between hover:bg-neutral-50 transition-colors focus:outline-none"
+                            >
+                                <div className="flex items-center">
+                                    <span className="inline-flex items-center px-3 py-1 rounded-lg text-sm font-bold text-[#0288D1] bg-[#E1F5FE] border border-[#B3E5FC]">
+                                        여비
+                                    </span>
+                                    <span className="ml-3 text-sm font-bold text-neutral-700">시외 출장에 한정하여 지원</span>
+                                </div>
+                                {openSection === '여비' ? <ChevronDown className="w-5 h-5 text-neutral-400" /> : <ChevronRight className="w-5 h-5 text-neutral-400" />}
+                            </button>
+                            {openSection === '여비' && (
+                                <div className="px-6 pb-6 animate-in slide-in-from-top-2 duration-200">
+                                    <div className="mb-4">
+                                        <h4 className="text-sm font-bold text-neutral-700 mb-2">진행 프로세스</h4>
+                                        <ProcessFlow steps={['사전신청', '검토', '출장', '증빙제출', '지급']} />
+                                    </div>
+                                    <div className="bg-neutral-50 rounded-xl border border-neutral-200 overflow-hidden">
+                                        <table className="min-w-full divide-y divide-neutral-200 text-sm">
+                                            <thead className="bg-neutral-100">
+                                                <tr>
+                                                    <th scope="col" className="px-4 py-3 text-center font-bold text-neutral-600 w-16">순번</th>
+                                                    <th scope="col" className="px-4 py-3 text-left font-bold text-neutral-600">여비 필수 제출 서류</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="bg-white divide-y divide-neutral-200">
+                                                {[
+                                                    "출장계획서", "보고서", "영수증", "증빙사진", "통장/신분증 사본"
+                                                ].map((doc, idx) => (
+                                                    <tr key={idx} className="hover:bg-neutral-50">
+                                                        <td className="px-4 py-2.5 text-center font-medium text-neutral-500">{idx + 1}</td>
+                                                        <td className="px-4 py-2.5 text-neutral-800 font-medium">{doc}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
                         {/* 재료비 Accordion */}
                         <div>
                             <button
@@ -71,12 +137,16 @@ export default function ProgramGuide() {
                                     <span className="inline-flex items-center px-3 py-1 rounded-lg text-sm font-bold text-[#2E7D32] bg-[#E8F5E9] border border-[#C8E6C9]">
                                         재료비
                                     </span>
-                                    <span className="ml-3 text-sm font-bold text-neutral-700">시제품 제작을 위한 소모품 (상세 서류 표 10종)</span>
+                                    <span className="ml-3 text-sm font-bold text-neutral-700">시제품 제작을 위한 소모품 (10종)</span>
                                 </div>
                                 {openSection === '재료비' ? <ChevronDown className="w-5 h-5 text-neutral-400" /> : <ChevronRight className="w-5 h-5 text-neutral-400" />}
                             </button>
                             {openSection === '재료비' && (
                                 <div className="px-6 pb-6 animate-in slide-in-from-top-2 duration-200">
+                                    <div className="mb-4">
+                                        <h4 className="text-sm font-bold text-neutral-700 mb-2">진행 프로세스</h4>
+                                        <ProcessFlow steps={['매주 월요일 신청', '화~수 일괄구매', '검수 및 사진촬영', '서류제출']} />
+                                    </div>
                                     <div className="bg-neutral-50 rounded-xl border border-neutral-200 overflow-hidden">
                                         <table className="min-w-full divide-y divide-neutral-200 text-sm">
                                             <thead className="bg-neutral-100">
@@ -113,12 +183,16 @@ export default function ProgramGuide() {
                                     <span className="inline-flex items-center px-3 py-1 rounded-lg text-sm font-bold text-[#7B1FA2] bg-[#F3E5F5] border border-[#E1BEE7]">
                                         외주용역비
                                     </span>
-                                    <span className="ml-3 text-sm font-bold text-neutral-700">시제품 고도화 목적 외부 업체 의뢰 (상세 서류 표 14종)</span>
+                                    <span className="ml-3 text-sm font-bold text-neutral-700">시제품 고도화 목적 외부 업체 의뢰 (14종)</span>
                                 </div>
                                 {openSection === '외주용역비' ? <ChevronDown className="w-5 h-5 text-neutral-400" /> : <ChevronRight className="w-5 h-5 text-neutral-400" />}
                             </button>
                             {openSection === '외주용역비' && (
                                 <div className="px-6 pb-6 animate-in slide-in-from-top-2 duration-200">
+                                    <div className="mb-4">
+                                        <h4 className="text-sm font-bold text-neutral-700 mb-2">진행 프로세스</h4>
+                                        <ProcessFlow steps={['용역신청', '계약검토', '계약진행', '완료보고', '비용지출']} />
+                                    </div>
                                     <div className="bg-neutral-50 rounded-xl border border-neutral-200 overflow-hidden">
                                         <table className="min-w-full divide-y divide-neutral-200 text-sm">
                                             <thead className="bg-neutral-100">
@@ -146,60 +220,101 @@ export default function ProgramGuide() {
                             )}
                         </div>
 
-                        {/* 여비 및 수수료 Accordion */}
+                        {/* 지급수수료 Accordion */}
                         <div>
                             <button
-                                onClick={() => toggleSection('기타')}
+                                onClick={() => toggleSection('지급수수료')}
                                 className="w-full text-left px-6 py-4 flex items-center justify-between hover:bg-neutral-50 transition-colors focus:outline-none"
                             >
                                 <div className="flex items-center">
-                                    <span className="inline-flex items-center px-3 py-1 rounded-lg text-sm font-bold text-[#0288D1] bg-[#E1F5FE] border border-[#B3E5FC]">
-                                        여비 및 지급수수료
+                                    <span className="inline-flex items-center px-3 py-1 rounded-lg text-sm font-bold text-[#F57F17] bg-[#FFF8E1] border border-[#FFECB3]">
+                                        지급수수료
                                     </span>
-                                    <span className="ml-3 text-sm font-bold text-neutral-700">시외 출장, 전문가 멘토링, 특허 출원 등 (상세 서류 표)</span>
+                                    <span className="ml-3 text-sm font-bold text-neutral-700">전문가 활용비 등 수수료</span>
                                 </div>
-                                {openSection === '기타' ? <ChevronDown className="w-5 h-5 text-neutral-400" /> : <ChevronRight className="w-5 h-5 text-neutral-400" />}
+                                {openSection === '지급수수료' ? <ChevronDown className="w-5 h-5 text-neutral-400" /> : <ChevronRight className="w-5 h-5 text-neutral-400" />}
                             </button>
-                            {openSection === '기타' && (
+                            {openSection === '지급수수료' && (
                                 <div className="px-6 pb-6 animate-in slide-in-from-top-2 duration-200">
                                     <div className="bg-neutral-50 rounded-xl border border-neutral-200 overflow-hidden">
                                         <table className="min-w-full divide-y divide-neutral-200 text-sm">
                                             <thead className="bg-neutral-100">
                                                 <tr>
-                                                    <th scope="col" className="px-4 py-3 text-center font-bold text-neutral-600 w-24">구분</th>
-                                                    <th scope="col" className="px-4 py-3 text-left font-bold text-neutral-600">필수 제출 서류</th>
+                                                    <th scope="col" className="px-4 py-3 text-left font-bold text-neutral-600">구분</th>
+                                                    <th scope="col" className="px-4 py-3 text-left font-bold text-neutral-600">상세 내용 및 필수 제출 서류</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="bg-white divide-y divide-neutral-200">
                                                 <tr className="hover:bg-neutral-50">
-                                                    <td className="px-4 py-3 text-center font-bold text-neutral-700 bg-neutral-50/50">여비</td>
+                                                    <td className="px-4 py-3 font-bold text-neutral-700 bg-neutral-50/50 align-top">전문가 자격요건</td>
                                                     <td className="px-4 py-3 text-neutral-800 font-medium whitespace-pre-line leading-relaxed">
-                                                        • <strong>출장신청서</strong> (사전 제출)<br />
-                                                        • <strong>출장보고서</strong> (증빙사진 포함)<br />
-                                                        • 영수증 (시외버스, KTX 등 실비)<br />
-                                                        • 본인 확인용 신분증 및 통장 사본
+                                                        • 박사학위 소지자, 대학 조교수 이상 등<br />
+                                                        • 석사학위 소지 후 관련 분야 3년 이상 경력자<br />
+                                                        • 학사학위 소지 후 관련 분야 5년 이상 경력자<br />
+                                                        • 기타 위와 동등한 자격이 있다고 인정되는 자
                                                     </td>
                                                 </tr>
                                                 <tr className="hover:bg-neutral-50">
-                                                    <td className="px-4 py-3 text-center font-bold text-neutral-700 bg-neutral-50/50">지급수수료<br /><span className="text-xs font-normal text-neutral-500">(멘토링 등)</span></td>
+                                                    <td className="px-4 py-3 font-bold text-neutral-700 bg-neutral-50/50 align-top">필수 제출 서류</td>
                                                     <td className="px-4 py-3 text-neutral-800 font-medium whitespace-pre-line leading-relaxed">
-                                                        • <strong>전문가 이력서</strong> (및 포트폴리오)<br />
-                                                        • <strong>멘토링 계획서</strong> (사전 승인용)<br />
+                                                        • <strong>전문가 이력서</strong> (자격 증빙 포트폴리오 포함)<br />
+                                                        • <strong>멘토링 계획서</strong> (사전 제출 및 승인 필요)<br />
                                                         • <strong>멘토링 결과보고서</strong><br />
-                                                        • 전문가 신분증 및 통장 사본
-                                                    </td>
-                                                </tr>
-                                                <tr className="hover:bg-neutral-50">
-                                                    <td className="px-4 py-3 text-center font-bold text-neutral-700 bg-neutral-50/50">무형자산<br /><span className="text-xs font-normal text-neutral-500">(특허 등)</span></td>
-                                                    <td className="px-4 py-3 text-neutral-800 font-medium whitespace-pre-line leading-relaxed">
-                                                        • 견적서 및 세금계산서<br />
-                                                        • 위임계약서<br />
-                                                        • 출원사실증명원 등
+                                                        • 전문가 신분증 사본 및 통장 사본
                                                     </td>
                                                 </tr>
                                             </tbody>
                                         </table>
                                     </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* 무형자산취득비 Accordion */}
+                        <div>
+                            <button
+                                onClick={() => toggleSection('무형자산취득비')}
+                                className="w-full text-left px-6 py-4 flex items-center justify-between hover:bg-neutral-50 transition-colors focus:outline-none"
+                            >
+                                <div className="flex items-center">
+                                    <span className="inline-flex items-center px-3 py-1 rounded-lg text-sm font-bold text-[#E65100] bg-[#FFF3E0] border border-[#FFE0B2]">
+                                        무형자산취득비
+                                    </span>
+                                    <span className="ml-3 text-sm font-bold text-neutral-700">특허, 상표권, 디자인권 등 지식재산권 출원/등록</span>
+                                </div>
+                                {openSection === '무형자산취득비' ? <ChevronDown className="w-5 h-5 text-neutral-400" /> : <ChevronRight className="w-5 h-5 text-neutral-400" />}
+                            </button>
+                            {openSection === '무형자산취득비' && (
+                                <div className="px-6 pb-6 animate-in slide-in-from-top-2 duration-200">
+                                    <div className="bg-neutral-50 rounded-xl border border-neutral-200 overflow-hidden">
+                                        <table className="min-w-full divide-y divide-neutral-200 text-sm">
+                                            <thead className="bg-neutral-100">
+                                                <tr>
+                                                    <th scope="col" className="px-4 py-3 text-left font-bold text-neutral-600">구분</th>
+                                                    <th scope="col" className="px-4 py-3 text-left font-bold text-neutral-600">상세 내용 및 필수 제출 서류</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="bg-white divide-y divide-neutral-200">
+                                                <tr className="hover:bg-neutral-50">
+                                                    <td className="px-4 py-3 font-bold text-neutral-700 bg-neutral-50/50 align-top">비용 지원 대상</td>
+                                                    <td className="px-4 py-3 text-neutral-800 font-medium whitespace-pre-line leading-relaxed">
+                                                        • 사업기간 내 발생한 지식재산권(특허, 상표, 디자인 등) <strong>출원/등록 대리인 비용</strong><br />
+                                                        • 특허청 관납료 등(단, 심사청구료 제외될 수 있음)
+                                                    </td>
+                                                </tr>
+                                                <tr className="hover:bg-neutral-50">
+                                                    <td className="px-4 py-3 font-bold text-neutral-700 bg-neutral-50/50 align-top">필수 제출 서류</td>
+                                                    <td className="px-4 py-3 text-neutral-800 font-medium whitespace-pre-line leading-relaxed">
+                                                        • <strong>출원사실증명원</strong> (또는 출원번호통지서)<br />
+                                                        • 견적서 및 전자세금계산서<br />
+                                                        • 위임계약서<br />
+                                                        • 청구서(대리인 사무소 내부 양식)
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <p className="mt-3 text-xs text-neutral-500">* 지식재산권은 지원사업 규정에 따라 사업단 명의 포함 등 관련 규정 숙지가 필요할 수 있습니다.</p>
                                 </div>
                             )}
                         </div>
