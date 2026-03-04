@@ -4,6 +4,7 @@ import StudentDashboard from './components/StudentDashboard';
 import AdminDashboard from './components/AdminDashboard';
 import BudgetDashboard from './components/BudgetDashboard';
 import Login from './components/Login';
+import ProgramGuide from './pages/student/ProgramGuide';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 function Navigation() {
@@ -50,6 +51,12 @@ function Navigation() {
             className={`px-4 py-2 text-sm font-semibold rounded-xl shadow-sm border transition-colors ${path === '/dashboard' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-50'}`}
           >
             내 신청 내역
+          </Link>
+          <Link
+            to="/guide"
+            className={`px-4 py-2 text-sm font-semibold rounded-xl shadow-sm border transition-colors ${path === '/guide' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-50'}`}
+          >
+            프로그램 안내
           </Link>
         </>
       )}
@@ -98,6 +105,8 @@ function App() {
         <Routes>
           <Route path="/" element={<ProtectedStudentRoute><ExpenseRequestForm /></ProtectedStudentRoute>} />
           <Route path="/dashboard" element={<ProtectedStudentRoute><StudentDashboard /></ProtectedStudentRoute>} />
+          <Route path="/guide" element={<ProtectedStudentRoute><ProgramGuide /></ProtectedStudentRoute>} />
+
           <Route path="/admin" element={<ProtectedAdminRoute><BudgetDashboard /></ProtectedAdminRoute>} />
           <Route path="/admin/requests" element={<ProtectedAdminRoute><AdminDashboard /></ProtectedAdminRoute>} />
         </Routes>

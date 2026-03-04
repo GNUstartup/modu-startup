@@ -228,8 +228,8 @@ export default function RecordDetailModal({ record, onClose, baseId, apiKey, ava
                         const fileUrl = await uploadToTmp(file as File);
                         uploadedAttachments[key] = [{ url: fileUrl, filename: (file as File).name }];
                     } catch (err: any) {
-                        console.warn(`파일 업로드 실패, 기존 파일 유지: ${err.message}`);
-                        // 업로드 실패 시 기존 파일 유지
+                        console.error(`파일 업로드 에러: ${err.message}`);
+                        // 업로드 오류 무시 (텍스트 수정 보장)
                         if ((f as any)[key] && Array.isArray((f as any)[key])) {
                             uploadedAttachments[key] = (f as any)[key] as Array<{ url: string, filename: string }>;
                         }
