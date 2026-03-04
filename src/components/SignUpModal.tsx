@@ -21,6 +21,20 @@ export default function SignUpModal({ onClose }: SignUpModalProps) {
     const tableName = import.meta.env.VITE_AIRTABLE_TEAM_TABLE_NAME || '팀 기본 정보'; // Or '팀 로그인 정보'
     const apiKey = import.meta.env.VITE_AIRTABLE_API_KEY;
 
+    const handleContactChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const rawValue = e.target.value.replace(/[^\d]/g, '');
+        const truncatedValue = rawValue.slice(0, 11);
+        let formattedValue = '';
+        if (truncatedValue.length <= 3) {
+            formattedValue = truncatedValue;
+        } else if (truncatedValue.length <= 7) {
+            formattedValue = `${truncatedValue.slice(0, 3)}-${truncatedValue.slice(3)}`;
+        } else {
+            formattedValue = `${truncatedValue.slice(0, 3)}-${truncatedValue.slice(3, 7)}-${truncatedValue.slice(7)}`;
+        }
+        setContact(formattedValue);
+    };
+
     const handleSignUp = async (e: React.FormEvent) => {
         e.preventDefault();
 
@@ -165,7 +179,7 @@ export default function SignUpModal({ onClose }: SignUpModalProps) {
                                         type="text"
                                         required
                                         value={contact}
-                                        onChange={e => setContact(e.target.value)}
+                                        onChange={handleContactChange}
                                         className="w-full px-4 py-2.5 rounded-xl bg-neutral-50 border border-neutral-200 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder-neutral-400"
                                         placeholder="010-0000-0000"
                                     />
