@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { RefreshCw, Wallet, Search, AlertCircle, DollarSign, CheckCircle2, TrendingUp } from 'lucide-react';
+import { RefreshCw, Wallet, Search, AlertCircle, DollarSign, CheckCircle2, TrendingUp, AlertTriangle } from 'lucide-react';
 import TeamDetailModal from './TeamDetailModal';
 
 interface AirtableRecord {
@@ -67,6 +67,12 @@ export default function BudgetDashboard() {
     const [isLoading, setIsLoading] = useState(true);
     const [errorMsg, setErrorMsg] = useState('');
     const [selectedTeamDetail, setSelectedTeamDetail] = useState<TeamDetailData | null>(null);
+
+    const [globalToast, setGlobalToast] = useState('');
+    const displayGlobalToast = (msg: string) => {
+        setGlobalToast(msg);
+        setTimeout(() => setGlobalToast(''), 3000);
+    };
 
     const baseId = import.meta.env.VITE_AIRTABLE_BASE_ID;
     const tableName = '신청 종합';
@@ -175,6 +181,20 @@ export default function BudgetDashboard() {
 
     return (
         <div className="min-h-screen bg-neutral-50 py-10 px-4 sm:px-6 lg:px-8 font-sans">
+            {/* Custom Global Toast */}
+            {globalToast && (
+                <div className="fixed top-6 left-1/2 transform -translate-x-1/2 z-[80] animate-in fade-in slide-in-from-top-4 duration-300">
+                    <div className="bg-neutral-900 border border-neutral-800 shadow-2xl rounded-full px-6 py-3 flex items-center gap-3 w-max max-w-sm">
+                        {globalToast.includes('오류') || globalToast.includes('실패') ? (
+                            <AlertTriangle className="w-5 h-5 text-red-500 shrink-0" />
+                        ) : (
+                            <CheckCircle2 className="w-5 h-5 text-green-400 shrink-0" />
+                        )}
+                        <span className="text-white text-sm font-medium">{globalToast}</span>
+                    </div>
+                </div>
+            )}
+
             <div className="max-w-7xl mx-auto space-y-6">
 
                 {/* Header Section */}
@@ -434,7 +454,7 @@ export default function BudgetDashboard() {
                             ));
                             setSelectedTeamDetail(prev => prev ? { ...prev, accountId: id, accountPw: pw } : null);
                         } catch (err: any) {
-                            alert(err.message || '저장 중 오류가 발생했습니다.');
+                            displayGlobalToast(err.message || '저장 중 오류가 발생했습니다.');
                         }
                     }}
                     onSaveBudget={async (budget) => {
@@ -477,7 +497,23 @@ export default function BudgetDashboard() {
                                 totalBudget: budget.travel + budget.material + budget.outsourcing + budget.fee
                             } : null);
                         } catch (err: any) {
-                            alert(err.message || '저장 중 오류가 발생했습니다.');
+                            displayGlobalToast(err.message || '저장 중 오류가 발생했습니다.');
+                        }
+                    }}
+                    onDeleteTeam={async () => {
+                        try {
+                            const url = new URL(`https://api.airtable.com/v0/${baseId}/${encodeURIComponent(teamTableName)}/${selectedTeamDetail.id}`);
+                            const response = await fetch(url.toString(), {
+                                method: 'DELETE',
+                                headers: { 'Authorization': `Bearer ${apiKey}` }
+                            });
+                            if (!response.ok) throw new Error('팀 삭제 처리 중 서버 오류가 발생했습니다.');
+
+                            displayGlobalToast("팀 정보가 삭제되었습니다.");
+                            setSelectedTeamDetail(null);
+                            fetchData();
+                        } catch (err: any) {
+                            displayGlobalToast(err.message || '삭제 중 오류가 발생했습니다.');
                         }
                     }}
                 />

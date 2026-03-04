@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Save, Clock, Wallet, UserCog, CheckCircle2, TrendingUp, User, RefreshCw } from 'lucide-react';
+import { X, Save, Clock, Wallet, UserCog, CheckCircle2, TrendingUp, User, RefreshCw, Trash2, AlertTriangle } from 'lucide-react';
 
 interface AirtableRecord {
     id: string;
@@ -31,10 +31,11 @@ interface TeamDetailProps {
     recentRequests: AirtableRecord[];
     onSaveAccount: (id: string, pw: string) => Promise<void>;
     onSaveBudget: (budget: { travel: number, material: number, outsourcing: number, fee: number }) => Promise<void>;
+    onDeleteTeam: () => Promise<void>;
 }
 
 export default function TeamDetailModal({
-    isOpen, onClose, teamName, teamLeaderName, accountId, accountPw, budgetPlan, businessPlanDoc, recentRequests, onSaveAccount, onSaveBudget
+    isOpen, onClose, teamName, teamLeaderName, accountId, accountPw, budgetPlan, businessPlanDoc, recentRequests, onSaveAccount, onSaveBudget, onDeleteTeam
 }: TeamDetailProps) {
     const [editAccountPw, setEditAccountPw] = useState(accountPw);
 
@@ -46,12 +47,25 @@ export default function TeamDetailModal({
     const [isSavingAccount, setIsSavingAccount] = useState(false);
     const [isSavingBudget, setIsSavingBudget] = useState(false);
 
+    // Add custom toast state
+    const [showToast, setShowToast] = useState(false);
+    const [toastMessage, setToastMessage] = useState('');
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    const displayToast = (msg: string) => {
+        setToastMessage(msg);
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+    };
+
     if (!isOpen) return null;
 
     const handleSaveAccount = async () => {
         setIsSavingAccount(true);
         try {
             await onSaveAccount(accountId, editAccountPw);
+            displayToast("계정 정보가 성공적으로 수정되었습니다.");
         } finally {
             setIsSavingAccount(false);
         }
@@ -66,7 +80,17 @@ export default function TeamDetailModal({
             fee: parseInt(editFee.replace(/[^0-9]/g, ''), 10) || 0,
         });
         setIsSavingBudget(false);
-        alert("팀 정보가 성공적으로 수정되었습니다.");
+        displayToast("예산 정보가 성공적으로 수정되었습니다.");
+    };
+
+    const handleDeleteTeam = async () => {
+        setIsDeleting(true);
+        try {
+            await onDeleteTeam();
+        } finally {
+            setIsDeleting(false);
+            setShowDeleteConfirm(false);
+        }
     };
 
     const formatDate = (dateString: string) => {
@@ -81,6 +105,50 @@ export default function TeamDetailModal({
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            {/* Custom Dark Toast */}
+            {showToast && (
+                <div className="fixed top-6 left-1/2 transform -translate-x-1/2 z-[60] animate-in fade-in slide-in-from-top-4 duration-300">
+                    <div className="bg-neutral-900 border border-neutral-800 shadow-2xl rounded-full px-6 py-3 flex items-center gap-3">
+                        <CheckCircle2 className="w-5 h-5 text-green-400" />
+                        <span className="text-white text-sm font-medium">{toastMessage}</span>
+                    </div>
+                </div>
+            )}
+
+            {/* Delete Confirmation Modal */}
+            {showDeleteConfirm && (
+                <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden transform transition-all animate-in zoom-in-95 duration-200 border border-neutral-200">
+                        <div className="p-8 text-center">
+                            <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-5">
+                                <AlertTriangle className="w-8 h-8 text-red-500" />
+                            </div>
+                            <h3 className="text-xl font-bold text-neutral-900 mb-2">팀 삭제</h3>
+                            <p className="text-sm text-neutral-500 mb-8 leading-relaxed">
+                                정말로 이 팀을 삭제하시겠습니까?<br />삭제된 데이터는 복구할 수 없습니다.
+                            </p>
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setShowDeleteConfirm(false)}
+                                    disabled={isDeleting}
+                                    className="flex-1 py-3 px-4 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-bold rounded-xl transition-colors disabled:opacity-50"
+                                >
+                                    취소
+                                </button>
+                                <button
+                                    onClick={handleDeleteTeam}
+                                    disabled={isDeleting}
+                                    className="flex-1 py-3 px-4 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center"
+                                >
+                                    {isDeleting ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : null}
+                                    삭제
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                 {/* Header */}
                 <div className="px-6 py-4 border-b border-slate-700 flex justify-between items-center bg-slate-800 sticky top-0 z-10 text-white">
@@ -283,6 +351,19 @@ export default function TeamDetailModal({
                     </div>
 
                 </div>
+
+                {/* Footer Component */}
+                <div className="px-6 py-4 border-t border-neutral-100 bg-white flex justify-between items-center shrink-0">
+                    <button
+                        onClick={() => setShowDeleteConfirm(true)}
+                        className="inline-flex items-center px-4 py-2 text-sm font-bold rounded-xl text-red-600 bg-red-50 hover:bg-red-100 transition-colors focus:outline-none"
+                    >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        팀 삭제
+                    </button>
+                    <div className="w-4 h-4"></div>
+                </div>
+
             </div>
         </div>
     );
