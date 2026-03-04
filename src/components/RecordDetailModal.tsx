@@ -211,24 +211,19 @@ export default function RecordDetailModal({ record, onClose, baseId, apiKey, ava
 
             for (const [key, file] of Object.entries(editFiles)) {
                 if (file) {
-                    const base64 = await new Promise<string>((resolve, reject) => {
-                        const reader = new FileReader();
-                        reader.readAsDataURL(file);
-                        reader.onload = () => resolve(reader.result as string);
-                        reader.onerror = error => reject(error);
-                    });
-
-                    const uploadRes = await fetch('https://modustartup.namoo.workers.dev/upload', {
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    const uploadRes = await fetch('https://tmpfiles.org/api/v1/upload', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ file: base64, filename: file.name, contentType: file.type })
+                        body: formData
                     });
 
                     if (!uploadRes.ok) throw new Error('파일 업로드에 실패했습니다.');
                     const result = await uploadRes.json();
 
-                    if (result.success && result.url) {
-                        uploadedAttachments[key] = [{ url: result.url, filename: file.name }];
+                    if (result.status === 'success' && result.data?.url) {
+                        const fileUrl = result.data.url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
+                        uploadedAttachments[key] = [{ url: fileUrl, filename: file.name }];
                     } else {
                         throw new Error('파일 업로드 응답 처리 실패');
                     }
