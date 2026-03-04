@@ -38,7 +38,8 @@ export default function Login() {
             const response = await fetch(`https://api.airtable.com/v0/${baseId}/${encodeURIComponent(tableName)}?filterByFormula=${filterFormula}`, {
                 headers: {
                     'Authorization': `Bearer ${apiKey}`
-                }
+                },
+                cache: 'no-store'
             });
 
             if (!response.ok) {

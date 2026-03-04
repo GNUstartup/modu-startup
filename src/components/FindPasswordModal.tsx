@@ -47,7 +47,8 @@ export default function FindPasswordModal({ onClose }: FindPasswordModalProps) {
             const url = `https://api.airtable.com/v0/${baseId}/${encodeURIComponent(tableName)}?filterByFormula=${filterFormula}`;
 
             const response = await fetch(url, {
-                headers: { 'Authorization': `Bearer ${apiKey}` }
+                headers: { 'Authorization': `Bearer ${apiKey}` },
+                cache: 'no-store'
             });
 
             if (!response.ok) {

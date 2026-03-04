@@ -72,7 +72,8 @@ export default function ReportUploadModal({ mainRecordId, teamName, expenseCateg
             searchUrl.searchParams.append('filterByFormula', `{팀명} = '${teamName}'`);
 
             const resSearch = await fetch(searchUrl.toString(), {
-                headers: { 'Authorization': `Bearer ${apiKey}` }
+                headers: { 'Authorization': `Bearer ${apiKey}` },
+                cache: 'no-store'
             });
 
             if (!resSearch.ok) throw new Error(`상세 기록 조회 실패 (${config.tableName})`);

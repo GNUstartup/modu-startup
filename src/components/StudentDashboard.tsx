@@ -64,7 +64,8 @@ export default function StudentDashboard() {
                 searchUrl.searchParams.append('maxRecords', '1');
 
                 const resSearch = await fetch(searchUrl.toString(), {
-                    headers: { 'Authorization': `Bearer ${apiKey}` }
+                    headers: { 'Authorization': `Bearer ${apiKey}` },
+                    cache: 'no-store'
                 });
 
                 if (resSearch.ok) {
@@ -115,7 +116,8 @@ export default function StudentDashboard() {
             teamUrl.searchParams.append('filterByFormula', `{팀명} = '${user.projectName}'`);
 
             const teamResponse = await fetch(teamUrl.toString(), {
-                headers: { 'Authorization': `Bearer ${apiKey}` }
+                headers: { 'Authorization': `Bearer ${apiKey}` },
+                cache: 'no-store'
             });
 
             if (teamResponse.ok) {
@@ -139,7 +141,8 @@ export default function StudentDashboard() {
             const response = await fetch(url.toString(), {
                 headers: {
                     'Authorization': `Bearer ${apiKey}`
-                }
+                },
+                cache: 'no-store'
             });
 
             if (!response.ok) {

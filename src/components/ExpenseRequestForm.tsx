@@ -72,7 +72,8 @@ export default function ExpenseRequestForm() {
                 url.searchParams.append('filterByFormula', `{팀명} = '${projectName}'`);
 
                 const response = await fetch(url.toString(), {
-                    headers: { 'Authorization': `Bearer ${apiKey}` }
+                    headers: { 'Authorization': `Bearer ${apiKey}` },
+                    cache: 'no-store'
                 });
 
                 if (response.ok) {

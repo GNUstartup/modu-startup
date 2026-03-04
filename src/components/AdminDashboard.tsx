@@ -59,7 +59,7 @@ export default function AdminDashboard() {
         try {
             if (!baseId || !apiKey) return;
             const url = `https://api.airtable.com/v0/meta/bases/${baseId}/tables`;
-            const response = await fetch(url, { headers: { Authorization: `Bearer ${apiKey}` } });
+            const response = await fetch(url, { headers: { Authorization: `Bearer ${apiKey}` }, cache: 'no-store' });
             if (!response.ok) return;
 
             const data = await response.json();
@@ -102,7 +102,8 @@ export default function AdminDashboard() {
             const response = await fetch(url.toString(), {
                 headers: {
                     'Authorization': `Bearer ${apiKey}`
-                }
+                },
+                cache: 'no-store'
             });
 
             if (!response.ok) {
@@ -167,7 +168,8 @@ export default function AdminDashboard() {
             url.searchParams.append('maxRecords', '1');
 
             const res = await fetch(url.toString(), {
-                headers: { 'Authorization': `Bearer ${apiKey}` }
+                headers: { 'Authorization': `Bearer ${apiKey}` },
+                cache: 'no-store'
             });
             if (!res.ok) return;
 
@@ -300,7 +302,8 @@ export default function AdminDashboard() {
                 searchUrl.searchParams.append('maxRecords', '1');
 
                 const resSearch = await fetch(searchUrl.toString(), {
-                    headers: { 'Authorization': `Bearer ${apiKey}` }
+                    headers: { 'Authorization': `Bearer ${apiKey}` },
+                    cache: 'no-store'
                 });
 
                 if (resSearch.ok) {
@@ -357,7 +360,8 @@ export default function AdminDashboard() {
                     searchUrl.searchParams.append('maxRecords', '1');
 
                     const resSearch = await fetch(searchUrl.toString(), {
-                        headers: { 'Authorization': `Bearer ${apiKey}` }
+                        headers: { 'Authorization': `Bearer ${apiKey}` },
+                        cache: 'no-store'
                     });
 
                     if (resSearch.ok) {

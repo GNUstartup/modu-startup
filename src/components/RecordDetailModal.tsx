@@ -128,7 +128,8 @@ export default function RecordDetailModal({ record, onClose, baseId, apiKey, ava
                 url.searchParams.append('maxRecords', '1'); // Should only be one exact match usually
 
                 const response = await fetch(url.toString(), {
-                    headers: { 'Authorization': `Bearer ${apiKey}` }
+                    headers: { 'Authorization': `Bearer ${apiKey}` },
+                    cache: 'no-store'
                 });
 
                 if (!response.ok) {

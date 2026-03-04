@@ -91,8 +91,8 @@ export default function BudgetDashboard() {
             const teamsUrl = new URL(`https://api.airtable.com/v0/${baseId}/${encodeURIComponent(teamTableName)}`);
 
             const [recordsRes, teamsRes] = await Promise.all([
-                fetch(recordsUrl.toString(), { headers: { 'Authorization': `Bearer ${apiKey}` } }),
-                fetch(teamsUrl.toString(), { headers: { 'Authorization': `Bearer ${apiKey}` } })
+                fetch(recordsUrl.toString(), { headers: { 'Authorization': `Bearer ${apiKey}` }, cache: 'no-store' }),
+                fetch(teamsUrl.toString(), { headers: { 'Authorization': `Bearer ${apiKey}` }, cache: 'no-store' })
             ]);
 
             if (!recordsRes.ok || !teamsRes.ok) {
