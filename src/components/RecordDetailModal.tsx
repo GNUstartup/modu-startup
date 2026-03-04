@@ -340,6 +340,11 @@ export default function RecordDetailModal({ record, onClose, baseId, apiKey, ava
             await Promise.resolve(onSaveSuccess());
             setIsEditing(false);
             setEditFiles({});
+
+            // 실시간 상태값 동기화를 위한 페이지 강제 새로고침
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
         } catch (err: any) {
             console.error("Save Error:", err);
             showToast(`수정에 실패했습니다: ${err.message}`, 'error');
