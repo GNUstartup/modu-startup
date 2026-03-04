@@ -447,8 +447,7 @@ export default function BudgetDashboard() {
                                         '여비_배정액': budget.travel,
                                         '재료비_배정액': budget.material,
                                         '외주용역비_배정액': budget.outsourcing,
-                                        '지급수수료_배정액': budget.fee,
-                                        '배정 예산': budget.travel + budget.material + budget.outsourcing + budget.fee
+                                        '지급수수료_배정액': budget.fee
                                     }
                                 }]
                             };
