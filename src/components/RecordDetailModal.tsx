@@ -211,21 +211,38 @@ export default function RecordDetailModal({ record, onClose, baseId, apiKey, ava
 
             for (const [key, file] of Object.entries(editFiles)) {
                 if (file) {
-                    const formData = new FormData();
-                    formData.append('file', file);
-                    const uploadRes = await fetch('https://tmpfiles.org/api/v1/upload', {
-                        method: 'POST',
-                        body: formData
-                    });
+                    try {
+                        const formData = new FormData();
+                        formData.append('file', file);
+                        const uploadRes = await fetch('https://tmpfiles.org/api/v1/upload', {
+                            method: 'POST',
+                            body: formData
+                        });
 
-                    if (!uploadRes.ok) throw new Error('파일 업로드에 실패했습니다.');
-                    const result = await uploadRes.json();
+                        if (!uploadRes.ok) throw new Error(`[임시 파일 서버 연결 실패] Status: ${uploadRes.status}`);
+                        const result = await uploadRes.json();
 
-                    if (result.status === 'success' && result.data?.url) {
-                        const fileUrl = result.data.url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
-                        uploadedAttachments[key] = [{ url: fileUrl, filename: file.name }];
-                    } else {
-                        throw new Error('파일 업로드 응답 처리 실패');
+                        if (result.status === 'success' && result.data?.url) {
+                            const fileUrl = result.data.url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
+
+                            // URL 유효성 검사 (Airtable 전송 전)
+                            try {
+                                const checkUrlRes = await fetch(fileUrl, { method: 'HEAD' });
+                                if (!checkUrlRes.ok) {
+                                    throw new Error(`[생성된 파일 URL 접근 불가] Status: ${checkUrlRes.status}`);
+                                }
+                            } catch (urlCheckErr: any) {
+                                console.warn('[URL HEAD 검사 실패, 계속 진행 시도]:', urlCheckErr);
+                                // HEAD 요청이 막혀있을 수 있으므로 에러를 던지지 않고 경고만 남김
+                            }
+
+                            uploadedAttachments[key] = [{ url: fileUrl, filename: file.name }];
+                        } else {
+                            throw new Error(`[파일 업로드 응답 형식 오류] Response: ${JSON.stringify(result)}`);
+                        }
+                    } catch (uploadErr: any) {
+                        console.error('[파일 업로드 처리 중 상세 에러]:', uploadErr);
+                        throw new Error(`파일 업로드 실패: ${uploadErr.message}`);
                     }
                 }
             }
