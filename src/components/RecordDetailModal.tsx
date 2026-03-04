@@ -209,42 +209,21 @@ export default function RecordDetailModal({ record, onClose, baseId, apiKey, ava
             // Upload any new files first
             const uploadedAttachments: Record<string, Array<{ url: string, filename: string }>> = {};
 
+            let fileUploadAttempted = false;
+
             for (const [key, file] of Object.entries(editFiles)) {
                 if (file) {
-                    try {
-                        const formData = new FormData();
-                        formData.append('file', file);
-                        const uploadRes = await fetch('https://file.io', {
-                            method: 'POST',
-                            body: formData
-                        });
-
-                        if (!uploadRes.ok) throw new Error(`[임시 파일 서버 연결 실패] Status: ${uploadRes.status}`);
-                        const result = await uploadRes.json();
-
-                        if (result.success && result.link) {
-                            const fileUrl = result.link;
-
-                            // URL 유효성 검사 (Airtable 전송 전)
-                            try {
-                                const checkUrlRes = await fetch(fileUrl, { method: 'HEAD' });
-                                if (!checkUrlRes.ok) {
-                                    throw new Error(`[생성된 파일 URL 접근 불가] Status: ${checkUrlRes.status}`);
-                                }
-                            } catch (urlCheckErr: any) {
-                                console.warn('[URL HEAD 검사 실패, 계속 진행 시도]:', urlCheckErr);
-                                // HEAD 요청이 막혀있을 수 있으므로 에러를 던지지 않고 경고만 남김
-                            }
-
-                            uploadedAttachments[key] = [{ url: fileUrl, filename: file.name }];
-                        } else {
-                            throw new Error(`[파일 업로드 응답 형식 오류] Response: ${JSON.stringify(result)}`);
-                        }
-                    } catch (uploadErr: any) {
-                        console.error('[파일 업로드 처리 중 상세 에러]:', uploadErr);
-                        throw new Error(`파일 업로드 실패: ${uploadErr.message}`);
+                    fileUploadAttempted = true;
+                    // 외부 파일 서버 접속 불가 장애에 대응하여 파일 업로드 일시 차단
+                    // 기존 Airtable에 저장된 파일 데이터를 그대로 유지
+                    if ((f as any)[key] && Array.isArray((f as any)[key])) {
+                        uploadedAttachments[key] = (f as any)[key] as Array<{ url: string, filename: string }>;
                     }
                 }
+            }
+
+            if (fileUploadAttempted) {
+                showToast('파일 수정은 현재 지원되지 않습니다. 기존 파일을 유지합니다.', 'error');
             }
 
             // 1. Update Main Table [신청 종합]

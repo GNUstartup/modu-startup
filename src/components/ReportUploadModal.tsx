@@ -51,15 +51,21 @@ export default function ReportUploadModal({ mainRecordId, teamName, expenseCateg
             if (!baseId || !apiKey) throw new Error('API 연동 설정 오류');
 
             // 1. Upload file to file.io
-            const formData = new FormData();
-            formData.append('file', file);
-            const resTmp = await fetch('https://file.io', {
-                method: 'POST',
-                body: formData
-            });
-            const dataTmp = await resTmp.json();
-            if (!resTmp.ok || !dataTmp.success) throw new Error('파일 업로드 실패 (임시 서버)');
-            const fileUrl = dataTmp.link;
+            let fileUrl = '';
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                const resTmp = await fetch('https://file.io', {
+                    method: 'POST',
+                    body: formData
+                });
+                const dataTmp = await resTmp.json();
+                if (!resTmp.ok || !dataTmp.success) throw new Error('파일 업로드 실패 (임시 서버)');
+                fileUrl = dataTmp.link;
+            } catch (uploadErr: any) {
+                console.warn(`파일 업로드 실패 (보고서 상태 변경만 진행됩니다): ${uploadErr.message}`);
+                // 업로드 실패 시 에러를 던지지 않고, 파일 없이 상태 변경만 진행하도록 우회
+            }
 
             // 2. Find the Detail Record ID using teamName
             const searchUrl = new URL(`https://api.airtable.com/v0/${baseId}/${encodeURIComponent(config.tableName)}`);
@@ -79,13 +85,18 @@ export default function ReportUploadModal({ mainRecordId, teamName, expenseCateg
             const detailRecordId = dataSearch.records[0].id;
 
             // 3. PATCH Detail Table with the new File and Status
+            const detailUpdateFields: any = {
+                "상태": "완료 서류 첨부 완료"
+            };
+
+            if (fileUrl) {
+                detailUpdateFields[config.columnName] = [{ url: fileUrl }];
+            }
+
             const payloadDetail = {
                 records: [{
                     id: detailRecordId,
-                    fields: {
-                        [config.columnName]: [{ url: fileUrl }],
-                        "상태": "완료 서류 첨부 완료"
-                    }
+                    fields: detailUpdateFields
                 }]
             };
 

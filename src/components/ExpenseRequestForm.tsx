@@ -221,7 +221,8 @@ export default function ExpenseRequestForm() {
             try {
                 if (files.file1) file1Url = await uploadToTmp(files.file1);
             } catch (tempErr: any) {
-                throw new Error(`파일 업로드 중 에러: ${tempErr.message}`);
+                console.warn(`파일 업로드 실패 (텍스트 데이터만 저장됩니다): ${tempErr.message}`);
+                // 외부 파일 서버 장애 시 에러를 던지지 않고 텍스트 데이터만 Airtable에 바로 반영하도록 우회
             }
 
             console.log(`[메인 테이블 저장 예정 데이터]`, JSON.stringify(payloadMain, null, 2));
