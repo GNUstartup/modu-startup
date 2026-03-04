@@ -70,6 +70,7 @@ export default function ExpenseRequestForm() {
             try {
                 const url = new URL(`https://api.airtable.com/v0/${baseId}/${encodeURIComponent(mainTableName)}`);
                 url.searchParams.append('filterByFormula', `{팀명} = '${projectName}'`);
+                url.searchParams.append('t', Date.now().toString());
 
                 const response = await fetch(url.toString(), {
                     headers: { 'Authorization': `Bearer ${apiKey}` },

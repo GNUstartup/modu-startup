@@ -62,6 +62,7 @@ export default function StudentDashboard() {
                 const dateFilter = `DATETIME_DIFF(CREATED_TIME(), '${deleteModalRecord.createdTime}', 'minutes') < 2`;
                 searchUrl.searchParams.append('filterByFormula', `AND({팀명} = '${f["팀명"]}', ${dateFilter})`);
                 searchUrl.searchParams.append('maxRecords', '1');
+                searchUrl.searchParams.append('t', Date.now().toString());
 
                 const resSearch = await fetch(searchUrl.toString(), {
                     headers: { 'Authorization': `Bearer ${apiKey}` },
@@ -114,6 +115,7 @@ export default function StudentDashboard() {
             const teamTableName = import.meta.env.VITE_AIRTABLE_TEAM_TABLE_NAME || '팀 기본 정보';
             const teamUrl = new URL(`https://api.airtable.com/v0/${baseId}/${encodeURIComponent(teamTableName)}`);
             teamUrl.searchParams.append('filterByFormula', `{팀명} = '${user.projectName}'`);
+            teamUrl.searchParams.append('t', Date.now().toString());
 
             const teamResponse = await fetch(teamUrl.toString(), {
                 headers: { 'Authorization': `Bearer ${apiKey}` },
@@ -137,6 +139,7 @@ export default function StudentDashboard() {
             // 2. Fetch records filtered by 팀명
             const url = new URL(`https://api.airtable.com/v0/${baseId}/${encodeURIComponent(mainTableName)}`);
             url.searchParams.append('filterByFormula', `{팀명} = '${user.projectName}'`);
+            url.searchParams.append('t', Date.now().toString());
 
             const response = await fetch(url.toString(), {
                 headers: {
