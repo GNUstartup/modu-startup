@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Info, AlertCircle, FileText, ChevronRight, ArrowRight, Plane, Box, Briefcase, UserCheck, Megaphone } from 'lucide-react';
+import { Info, AlertCircle, FileText, ArrowRight, Plane, Box, Briefcase, UserCheck, Megaphone } from 'lucide-react';
 
 export default function ProgramGuide() {
     const [openModal, setOpenModal] = useState<string | null>(null);
