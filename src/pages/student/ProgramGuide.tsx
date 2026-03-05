@@ -138,50 +138,61 @@ export default function ProgramGuide() {
                     definition="소재지를 벗어나 타 지역 출장 등의 사유로 집행하는 비용."
                 >
                     <div className="space-y-6">
-                        <div>
-                            <h3 className="text-lg font-bold text-[#0288D1] mb-3 flex items-center">
-                                <span className="mr-2 text-base">📍</span> 여비 처리 프로세스
-                            </h3>
-                            <ProcessFlow steps={['사전신청', '검토', '출장', '증빙제출']} />
+                        <div className="bg-[#E1F5FE]/60 p-5 rounded-xl border border-[#81D4FA] flex flex-col gap-3 shadow-sm">
+                            <div className="flex items-center">
+                                <Info className="w-5 h-5 text-[#0288D1] mr-2 flex-shrink-0" />
+                                <strong className="text-base text-[#01579B]">집행 원칙</strong>
+                            </div>
+                            <ul className="list-disc pl-8 text-sm text-[#01579B] font-medium space-y-1">
+                                <li>교통영수증은 사업단 승인 이후 <strong>개인카드로 결제</strong> (출장 신청일과 탑승일 동일 필수).</li>
+                                <li><strong>진주-출장지 왕복 영수증(실제 금액 표기) 제출 및 대중교통 이용 필수.</strong> (개인차량 이동 시 통행료/주유비 지급 불가)</li>
+                                <li><strong>단순 미팅 목적의 여비는 지급 불가.</strong></li>
+                            </ul>
+
+                            <hr className="border-[#B3E5FC] my-2" />
+
+                            <div className="flex items-center">
+                                <Info className="w-5 h-5 text-[#0288D1] mr-2 flex-shrink-0" />
+                                <strong className="text-base text-[#01579B]">지급 기준</strong>
+                            </div>
+                            <ul className="list-disc pl-8 text-sm text-[#01579B] font-medium space-y-1">
+                                <li><strong>버스</strong>: 우등요금 이하 실비 (프리미엄 이용 시에도 우등가로 지급).</li>
+                                <li><strong>철도</strong>: KTX/SRT/새마을호 일반실 이하 (특실/비즈니스석 불가).</li>
+                            </ul>
                         </div>
 
                         <div>
                             <h3 className="text-lg font-bold text-[#0288D1] mb-3 flex items-center">
-                                <span className="mr-2 text-base">📋</span> 필수 제출 서류 5종
+                                <span className="mr-2 text-base">📋</span> 제출 서류 4종
                             </h3>
                             <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden shadow-sm">
-                                <table className="min-w-full text-sm">
+                                <table className="min-w-full text-sm border-collapse">
                                     <thead className="bg-[#0288D1] text-white">
                                         <tr>
-                                            <th scope="col" className="px-4 py-3 text-center font-semibold w-16">순번</th>
+                                            <th scope="col" className="px-4 py-3 text-center font-semibold w-16 border-r border-[#0277BD]">순번</th>
                                             <th scope="col" className="px-4 py-3 text-left font-semibold">서류명</th>
                                         </tr>
                                     </thead>
                                     <tbody className="text-neutral-800">
-                                        {[
-                                            "출장계획서",
-                                            "출장보고서",
-                                            "영수증",
-                                            "증빙사진",
-                                            "통장/신분증 사본"
-                                        ].map((doc, idx) => (
-                                            <tr key={idx} className="even:bg-neutral-50/70 hover:bg-[#E1F5FE]/30 transition-colors border-b border-neutral-100 last:border-0">
-                                                <td className="px-4 py-3 text-center font-medium text-neutral-500">{idx + 1}</td>
-                                                <td className="px-4 py-3 font-medium text-neutral-900">{doc}</td>
-                                            </tr>
-                                        ))}
+                                        <tr className="even:bg-neutral-50/70 hover:bg-[#E1F5FE]/30 transition-colors border-b border-neutral-100 last:border-0">
+                                            <td className="px-4 py-3 text-center font-medium text-neutral-500 border-r border-neutral-200">1</td>
+                                            <td className="px-4 py-3 font-medium text-neutral-900">① 출장 세부 계획서(사전)</td>
+                                        </tr>
+                                        <tr className="even:bg-neutral-50/70 hover:bg-[#E1F5FE]/30 transition-colors border-b border-neutral-100 last:border-0">
+                                            <td className="px-4 py-3 text-center font-medium text-neutral-500 border-r border-neutral-200">2</td>
+                                            <td className="px-4 py-3 font-medium text-neutral-900">② 출장보고서(사후)</td>
+                                        </tr>
+                                        <tr className="even:bg-neutral-50/70 hover:bg-[#E1F5FE]/30 transition-colors border-b border-neutral-100 last:border-0">
+                                            <td className="px-4 py-3 text-center font-medium text-neutral-500 border-r border-neutral-200">3</td>
+                                            <td className="px-4 py-3 font-medium text-neutral-900">③ 영수증 및 증빙 사진 첨부철</td>
+                                        </tr>
+                                        <tr className="even:bg-neutral-50/70 hover:bg-[#E1F5FE]/30 transition-colors border-b border-neutral-100 last:border-0">
+                                            <td className="px-4 py-3 text-center font-medium text-neutral-500 border-r border-neutral-200">4</td>
+                                            <td className="px-4 py-3 font-medium text-neutral-900">④ 통장 및 신분증 사본</td>
+                                        </tr>
                                     </tbody>
                                 </table>
                             </div>
-                        </div>
-
-                        <div className="bg-[#E1F5FE]/50 p-4 rounded-xl border border-[#81D4FA] flex items-start shadow-sm mt-2">
-                            <Info className="w-5 h-5 text-[#0288D1] mr-2 flex-shrink-0 mt-0.5" />
-                            <p className="text-sm text-[#01579B] font-medium leading-relaxed">
-                                <strong>💰 여비 실비 지급 기준 안내</strong><br />
-                                • KTX의 경우 <strong>일반실 이하</strong> 운임만 지원 가능합니다.<br />
-                                • 고속버스의 경우 <strong>우등버스 이하</strong> 실비 기준만 명시되어 지급됩니다.
-                            </p>
                         </div>
                     </div>
                 </Modal>
@@ -192,40 +203,45 @@ export default function ProgramGuide() {
                     definition="사업계획서 상의 사업화를 위해 소모되는 재료 또는 원료 등을 구매하는 비용."
                 >
                     <div className="space-y-6">
-                        <div>
-                            <h3 className="text-lg font-bold text-[#2E7D32] mb-3 flex items-center">
-                                <span className="mr-2 text-base">📍</span> 재료비 구매 프로세스
-                            </h3>
-                            <ProcessFlow steps={['월요일 신청', '화~수 일괄구매', '검수', '서류제출']} />
+                        <div className="bg-[#E8F5E9]/60 p-5 rounded-xl border border-[#A5D6A7] flex flex-col gap-3 shadow-sm">
+                            <div className="flex items-center">
+                                <Info className="w-5 h-5 text-[#2E7D32] mr-2 flex-shrink-0" />
+                                <strong className="text-base text-[#1B5E20]">집행 원칙</strong>
+                            </div>
+                            <ProcessFlow steps={['매주 월요일 신청', '화~수 사업단 일괄 구매', '목~금 검수 및 수령']} />
+                            <ul className="list-disc pl-8 text-sm text-[#1B5E20] font-medium space-y-1 mt-3">
+                                <li><strong>양산 목적 물품 구매 불가</strong>, 시제품 제작 관련 소모품만 가능.</li>
+                                <li className="text-red-600"><strong>자산성 물품(PC, 태블릿, 모니터 등) 절대 구매 불가.</strong></li>
+                            </ul>
                         </div>
 
                         <div>
                             <h3 className="text-lg font-bold text-[#2E7D32] mb-3 flex items-center">
-                                <span className="mr-2 text-base">📋</span> 10종 필수 제출 서류 목록
+                                <span className="mr-2 text-base">📋</span> 제출 서류 10종
                             </h3>
                             <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden shadow-sm">
-                                <table className="min-w-full text-sm">
+                                <table className="min-w-full text-sm border-collapse">
                                     <thead className="bg-[#2E7D32] text-white">
                                         <tr>
-                                            <th scope="col" className="px-4 py-3 text-center font-semibold w-16">순번</th>
+                                            <th scope="col" className="px-4 py-3 text-center font-semibold w-16 border-r border-[#1B5E20]">순번</th>
                                             <th scope="col" className="px-4 py-3 text-left font-semibold">서류명</th>
                                         </tr>
                                     </thead>
                                     <tbody className="text-neutral-800">
                                         {[
-                                            "구매계획서",
-                                            "물품구입요청서",
-                                            "견적서",
-                                            "비교견적서(2곳)",
-                                            "영수증",
-                                            "검수사진",
-                                            "사업자등록증",
-                                            "통장사본",
-                                            "거래명세서",
-                                            "청구서"
+                                            "① 구매계획서",
+                                            "② 물품구입요청서",
+                                            "③ 견적서",
+                                            "④ 비교견적서(2곳 이상)",
+                                            "⑤ 영수증",
+                                            "⑥ 검수사진",
+                                            "⑦ 사업자등록증",
+                                            "⑧ 통장사본",
+                                            "⑨ 거래명세서",
+                                            "⑩ 청구서"
                                         ].map((doc, idx) => (
                                             <tr key={idx} className="even:bg-neutral-50/70 hover:bg-[#E8F5E9]/30 transition-colors border-b border-neutral-100 last:border-0">
-                                                <td className="px-4 py-3 text-center font-medium text-neutral-500">{idx + 1}</td>
+                                                <td className="px-4 py-3 text-center font-medium text-neutral-500 border-r border-neutral-200">{idx + 1}</td>
                                                 <td className="px-4 py-3 font-medium text-neutral-900">{doc}</td>
                                             </tr>
                                         ))}
@@ -239,27 +255,24 @@ export default function ProgramGuide() {
                 <Modal
                     category="외주용역비"
                     title="[외주용역비]"
-                    definition="사업계획서 상의 창업아이템을 고도화하거나 사업계획을 수행하기 위한 목적으로 일부 공정을 외부 업체에 의뢰하여 제작하고 그 대가를 지급하는 비용."
+                    definition="창업아이템 고도화 및 사업계획 수행을 위해 일부 공정을 외부 업체에 의뢰하여 제작하는 비용."
                 >
                     <div className="space-y-6">
-                        <div className="bg-purple-50 p-4 rounded-xl border border-purple-200 flex items-start shadow-sm">
-                            <Briefcase className="w-5 h-5 text-purple-700 mr-2 flex-shrink-0 mt-0.5" />
-                            <p className="text-sm text-purple-900 font-medium leading-relaxed">
-                                <strong>업체 자격 요건 안내</strong><br />
-                                외부 전문업체는 1년 이상의 해당 분야 종사 경력 및 외주용역 대상 창업아이템과 유사한 아이템의 제작 경험 보유 필수. <strong className="text-red-600">(크몽 등 중개서비스 불가)</strong>
-                            </p>
+                        <div className="bg-purple-50 p-5 rounded-xl border border-purple-200 flex flex-col gap-3 shadow-sm">
+                            <div className="flex items-center">
+                                <Briefcase className="w-5 h-5 text-purple-700 mr-2 flex-shrink-0" />
+                                <strong className="text-base text-purple-900">업체 자격 요건</strong>
+                            </div>
+                            <ul className="list-disc pl-8 text-sm text-purple-900 font-medium space-y-1">
+                                <li><strong>1년 이상</strong> 해당 분야 종사 경력 및 유사 아이템 제작 경험 보유 업체. (증빙 필요)</li>
+                                <li className="text-red-600"><strong>프리랜서 중개 서비스(크몽, 위시켓 등) 이용 불가.</strong></li>
+                                <li>시금형 제작은 가능하나 양산 목적 금형 제작은 불가.</li>
+                            </ul>
                         </div>
 
                         <div>
                             <h3 className="text-lg font-bold text-[#7B1FA2] mb-3 flex items-center">
-                                <span className="mr-2 text-base">📍</span> 외주용역 계약 프로세스
-                            </h3>
-                            <ProcessFlow steps={['신청', '계약검토', '계약진행', '완료보고']} />
-                        </div>
-
-                        <div>
-                            <h3 className="text-lg font-bold text-[#7B1FA2] mb-3 flex items-center">
-                                <span className="mr-2 text-base">📋</span> 18종 필수 제출 서류 목록
+                                <span className="mr-2 text-base">📋</span> 제출 서류
                             </h3>
                             <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden shadow-sm">
                                 <table className="min-w-full text-sm border-collapse">
@@ -270,36 +283,23 @@ export default function ProgramGuide() {
                                         </tr>
                                     </thead>
                                     <tbody className="text-neutral-800">
-                                        <tr className="even:bg-neutral-50/70 hover:bg-[#F3E5F5]/30">
-                                            <td className="px-4 py-3 text-center font-bold text-[#4A148C] bg-neutral-50/50 border-r border-neutral-200 border-b border-neutral-100" rowSpan={4}>계약 전<br />필요 서류</td>
-                                            <td className="px-4 py-3 font-medium border-b border-neutral-100"><span className="text-red-500 font-bold mr-2">1.</span>표준계약서 (양식에 맞추어 모든 장 <strong>간인 필수</strong>)</td>
-                                        </tr>
-                                        <tr className="even:bg-neutral-50/70 hover:bg-[#F3E5F5]/30">
-                                            <td className="px-4 py-3 font-medium border-b border-neutral-100"><span className="text-red-500 font-bold mr-2">2.</span>과업지시서 및 세부산출내역서</td>
-                                        </tr>
-                                        <tr className="even:bg-neutral-50/70 hover:bg-[#F3E5F5]/30">
-                                            <td className="px-4 py-3 font-medium border-b border-neutral-100"><span className="text-red-500 font-bold mr-2">3.</span>견적서 및 비교견적서</td>
-                                        </tr>
-                                        <tr className="even:bg-neutral-50/70 hover:bg-[#F3E5F5]/30">
-                                            <td className="px-4 py-3 font-medium border-b border-neutral-200"><span className="text-red-500 font-bold mr-2">4.</span>업체 관련 서류: 사업자등록증, 통장사본, 인감증명서, 사용인감계, 업체이력서(포트폴리오)</td>
-                                        </tr>
 
-                                        <tr className="bg-red-50/30 hover:bg-red-50/60">
-                                            <td className="px-4 py-3 text-center font-bold text-[#4A148C] bg-neutral-50/50 border-r border-neutral-200 border-b border-neutral-200">완납 증명<br />(필수)</td>
-                                            <td className="px-4 py-3 font-semibold text-red-900 border-b border-neutral-200">
-                                                국세 완납증명서, 지방세 완납증명서, 4대보험 완납증명서 등 3종
+                                        <tr className="even:bg-neutral-50/70 hover:bg-[#F3E5F5]/30 border-b border-neutral-200">
+                                            <td className="px-4 py-4 text-center font-bold text-[#4A148C] bg-neutral-50/50 border-r border-neutral-200">
+                                                계약 전 서류
+                                            </td>
+                                            <td className="px-4 py-4 font-medium leading-relaxed">
+                                                표준계약서(<strong>간인 필수</strong>), 과업지시서, 견적서, 계약보증금 면제각서, 수의계약 체결 제한 여부 확인서, 청렴계약 이행서약서, 사업자등록증 사본, 통장사본, 인감증명서, 납세증명서(국세/지방세/4대보험)
                                             </td>
                                         </tr>
 
                                         <tr className="even:bg-neutral-50/70 hover:bg-[#F3E5F5]/30">
-                                            <td className="px-4 py-3 text-center font-bold text-[#4A148C] bg-neutral-50/50 border-r border-neutral-200 border-b border-neutral-100" rowSpan={3}>용역 완료 시<br />(종료 시점)</td>
-                                            <td className="px-4 py-3 font-medium border-b border-neutral-100"><span className="text-indigo-600 font-bold mr-2">1.</span>완료보고서 및 완료 사진 자료</td>
-                                        </tr>
-                                        <tr className="even:bg-neutral-50/70 hover:bg-[#F3E5F5]/30">
-                                            <td className="px-4 py-3 font-medium border-b border-neutral-100"><span className="text-indigo-600 font-bold mr-2">2.</span>검수확인서</td>
-                                        </tr>
-                                        <tr className="even:bg-neutral-50/70 hover:bg-[#F3E5F5]/30">
-                                            <td className="px-4 py-3 font-medium"><span className="text-indigo-600 font-bold mr-2">3.</span>전자 세금계산서, 거래명세서, 청구서</td>
+                                            <td className="px-4 py-4 text-center font-bold text-[#4A148C] bg-neutral-50/50 border-r border-neutral-200">
+                                                검수 후 서류
+                                            </td>
+                                            <td className="px-4 py-4 font-medium leading-relaxed">
+                                                전자세금계산서, 거래명세서, 착수계, 완료계, 용역결과보고서, 증빙 사진 및 결과물 자료
+                                            </td>
                                         </tr>
                                     </tbody>
                                 </table>
@@ -316,25 +316,27 @@ export default function ProgramGuide() {
                     <div className="space-y-6">
                         <div>
                             <h3 className="text-lg font-bold text-[#E65100] mb-3 flex items-center">
-                                <span className="mr-2 text-base">👨‍🏫</span> 멘토링 전문가 자격 요건
+                                <span className="mr-2 text-base">👨‍🏫</span> 멘토 자격
                             </h3>
                             <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden shadow-sm">
                                 <table className="min-w-full text-sm">
                                     <thead className="bg-[#E65100] text-white">
                                         <tr>
-                                            <th scope="col" className="px-4 py-3 text-center font-semibold">자격 기준 명세 (6가지)</th>
+                                            <th scope="col" className="px-4 py-3 text-center font-semibold border-r border-[#EF6C00] w-16">구분</th>
+                                            <th scope="col" className="px-4 py-3 text-left font-semibold">자격 기준 명세</th>
                                         </tr>
                                     </thead>
                                     <tbody className="text-neutral-800">
                                         {[
-                                            "1. 관련 분야 박사학위 소지자",
-                                            "2. 대학 조교수 이상 전임 교원",
-                                            "3. 관련 분야 전문직(기술사, 건축사, 공인회계사, 세무사, 변호사, 변리사 등) 자격증 소지자",
-                                            "4. 관련 분야 석사학위 소지 후 5년 이상 경력자",
-                                            "5. 관련 분야 학사학위 소지 후 7년 이상 경력자",
-                                            "6. 기타 위 항목과 동등한 자격이 있다고 사업단이 인정하는 자"
+                                            "박사학위 소지자",
+                                            "석사학위 소지 후 5년 경력자",
+                                            "학사학위 소지 후 7년 경력자",
+                                            "대학교수",
+                                            "국가기술자격법상 기술사",
+                                            "전문직(변리사, 회계사, 변호사 등)"
                                         ].map((item, idx) => (
                                             <tr key={idx} className="even:bg-neutral-50/70 hover:bg-[#FFF8E1]/40 transition-colors border-b border-neutral-100 last:border-0">
+                                                <td className="px-4 py-3 text-center font-bold text-neutral-500 border-r border-neutral-200">{idx + 1}</td>
                                                 <td className="px-4 py-3 font-medium text-neutral-900">{item}</td>
                                             </tr>
                                         ))}
@@ -345,30 +347,28 @@ export default function ProgramGuide() {
 
                         <div>
                             <h3 className="text-lg font-bold text-[#E65100] mb-3 flex items-center">
-                                <span className="mr-2 text-base">📋</span> 멘토링 필수 제출 서류 4종
+                                <span className="mr-2 text-base">📋</span> 제출 서류
                             </h3>
                             <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden shadow-sm">
                                 <table className="min-w-full text-sm border-collapse">
                                     <thead className="bg-[#E65100] text-white">
                                         <tr>
-                                            <th scope="col" className="px-4 py-3 text-center font-semibold w-24 border-r border-[#EF6C00]">구분</th>
-                                            <th scope="col" className="px-4 py-3 text-left font-semibold">상세 서류명 및 필요 항목</th>
+                                            <th scope="col" className="px-4 py-3 text-center font-semibold w-16 border-r border-[#EF6C00]">순번</th>
+                                            <th scope="col" className="px-4 py-3 text-left font-semibold">서류명</th>
                                         </tr>
                                     </thead>
                                     <tbody className="text-neutral-800">
-                                        <tr className="hover:bg-[#FFF8E1]/30">
-                                            <td className="px-4 py-5 text-center font-bold text-[#E65100] bg-neutral-50/50 border-r border-neutral-200">
-                                                멘토링 서류<br />(4종)
-                                            </td>
-                                            <td className="px-4 py-5 font-medium">
-                                                <ul className="space-y-2 font-medium text-neutral-900">
-                                                    <li className="flex items-center"><span className="text-[#FFB300] mr-2 text-lg">■</span>전문가 위촉동의서</li>
-                                                    <li className="flex items-center"><span className="text-[#FFB300] mr-2 text-lg">■</span>멘토링보고서 (현장사진 포함)</li>
-                                                    <li className="flex items-center"><span className="text-[#FFB300] mr-2 text-lg">■</span>멘토 이력서</li>
-                                                    <li className="flex items-center"><span className="text-[#FFB300] mr-2 text-lg">■</span>신분증/통장 사본</li>
-                                                </ul>
-                                            </td>
-                                        </tr>
+                                        {[
+                                            "① 전문가 위촉동의서",
+                                            "② 멘토링보고서(현장사진 포함)",
+                                            "③ 멘토 이력서",
+                                            "④ 신분증 및 통장 사본"
+                                        ].map((doc, idx) => (
+                                            <tr key={idx} className="even:bg-neutral-50/70 hover:bg-[#FFF8E1]/30 transition-colors border-b border-neutral-100 last:border-0">
+                                                <td className="px-4 py-3 text-center font-medium text-neutral-500 border-r border-neutral-200">{idx + 1}</td>
+                                                <td className="px-4 py-3 font-medium text-neutral-900">{doc}</td>
+                                            </tr>
+                                        ))}
                                     </tbody>
                                 </table>
                             </div>
