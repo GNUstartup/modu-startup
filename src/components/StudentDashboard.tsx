@@ -122,9 +122,11 @@ export default function StudentDashboard() {
                 cache: 'no-store'
             });
 
+            let isTeamValid = false;
             if (teamResponse.ok) {
                 const teamData = await teamResponse.json();
                 if (teamData.records && teamData.records.length > 0) {
+                    isTeamValid = true;
                     const f = teamData.records[0].fields;
                     setTeamBudgets({
                         total: f['배정 예산'] ? Number(f['배정 예산']) : 0,
@@ -134,6 +136,13 @@ export default function StudentDashboard() {
                         jigeup: f['지급수수료_배정액'] ? Number(f['지급수수료_배정액']) : (f['지급수수료 배정액'] ? Number(f['지급수수료 배정액']) : 0),
                     });
                 }
+            }
+
+            if (!isTeamValid) {
+                setRecords([]);
+                setErrorMsg('소속 팀 정보가 삭제되었거나 유효하지 않습니다.');
+                setIsLoading(false);
+                return;
             }
 
             // 2. Fetch records filtered by 팀명

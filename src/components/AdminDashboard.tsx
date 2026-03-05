@@ -96,15 +96,15 @@ export default function AdminDashboard() {
                 throw new Error('Airtable 연동 정보(.env.local)가 설정되지 않았습니다.');
             }
 
-            // Fetch ALL records (no filterByFormula)
+            // Fetch ALL records and Teams
             const url = new URL(`https://api.airtable.com/v0/${baseId}/${encodeURIComponent(tableName)}`);
+            const teamTableName = import.meta.env.VITE_AIRTABLE_TEAM_TABLE_NAME || '팀 기본 정보';
+            const teamUrl = new URL(`https://api.airtable.com/v0/${baseId}/${encodeURIComponent(teamTableName)}`);
 
-            const response = await fetch(url.toString(), {
-                headers: {
-                    'Authorization': `Bearer ${apiKey}`
-                },
-                cache: 'no-store'
-            });
+            const [response, teamResponse] = await Promise.all([
+                fetch(url.toString(), { headers: { 'Authorization': `Bearer ${apiKey}` }, cache: 'no-store' }),
+                fetch(teamUrl.toString(), { headers: { 'Authorization': `Bearer ${apiKey}` }, cache: 'no-store' })
+            ]);
 
             if (!response.ok) {
                 let errorDetails = '';
@@ -117,10 +117,20 @@ export default function AdminDashboard() {
 
             const data = await response.json();
 
-            // Filter out empty teams (including whitespace)
+            const validTeamNames = new Set<string>();
+            if (teamResponse && teamResponse.ok) {
+                const teamData = await teamResponse.json();
+                if (teamData.records) {
+                    teamData.records.forEach((t: any) => {
+                        if (t.fields["팀명"]) validTeamNames.add(t.fields["팀명"]);
+                    });
+                }
+            }
+
+            // Filter out empty teams (including whitespace) and deleted teams
             const validRecords = data.records.filter((r: AirtableRecord) => {
                 const teamName = r.fields["팀명"];
-                return teamName && teamName.trim().length > 0;
+                return teamName && teamName.trim().length > 0 && validTeamNames.has(teamName);
             });
 
             // Sort by Team Name (ASC), then by Date (DESC)
