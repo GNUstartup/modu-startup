@@ -1,0 +1,1406 @@
+﻿commit c163b59573d30e2619c8123eefa3b8bd61d67b36
+Author: user <user@gemini.net>
+Date:   Thu Mar 5 11:09:44 2026 +0900
+
+    fix: filter orphaned applications and reconstruct ProgramGuide with specific Badge/Notice abstractions
+
+diff --git a/src/pages/student/ProgramGuide.tsx b/src/pages/student/ProgramGuide.tsx
+index 46992dc..7c364a0 100644
+--- a/src/pages/student/ProgramGuide.tsx
++++ b/src/pages/student/ProgramGuide.tsx
+@@ -2,19 +2,18 @@ import { useState } from 'react';
+ import { Info, AlertCircle, FileText, Plane, Box, Briefcase, UserCheck, ArrowRight, CheckCircle2 } from 'lucide-react';
+ 
+ // Design Components
+-const DefinitionBox = ({ title, children, color = "indigo" }: { title: string, children: React.ReactNode, color?: "indigo" | "blue" | "green" | "purple" | "orange" }) => {
++const SectionBadge = ({ title, color = "indigo" }: { title: string, color?: "indigo" | "blue" | "green" | "purple" | "orange" }) => {
+     const colorMap = {
+-        indigo: "bg-indigo-50 border-indigo-200 text-indigo-900",
+-        blue: "bg-blue-50 border-blue-200 text-blue-900",
+-        green: "bg-green-50 border-green-200 text-green-900",
+-        purple: "bg-purple-50 border-purple-200 text-purple-900",
+-        orange: "bg-orange-50 border-orange-200 text-orange-900"
++        indigo: "bg-indigo-50 text-indigo-700 border-indigo-200",
++        blue: "bg-blue-50 text-blue-700 border-blue-200",
++        green: "bg-green-50 text-green-700 border-green-200",
++        purple: "bg-purple-50 text-purple-700 border-purple-200",
++        orange: "bg-orange-50 text-orange-700 border-orange-200"
+     };
+     return (
+-        <div className={`p-4 rounded-xl border font-medium mb-5 shadow-sm break-keep ${colorMap[color]}`}>
+-            <strong className="block mb-1 text-lg">{title}</strong>
+-            {children}
+-        </div>
++        <span className={`inline-flex items-center px-3 py-1 mb-3 rounded-full text-sm font-bold border ${colorMap[color]} shadow-sm`}>
++            {title}
++        </span>
+     );
+ };
+ 
+@@ -37,7 +36,7 @@ const NoticeCard = ({ children, color = "neutral" }: { children: React.ReactNode
+     };
+ 
+     return (
+-        <div className={`p-5 mb-5 rounded-xl border flex items-start gap-3 shadow-sm break-keep ${colorMap[color]}`}>
++        <div className={`p-4 mb-5 rounded-xl border flex items-start gap-3 shadow-sm ${colorMap[color]}`}>
+             <AlertCircle className={`w-5 h-5 flex-shrink-0 mt-0.5 ${iconColorMap[color]}`} />
+             <div className="flex-1 space-y-2">
+                 {children}
+@@ -51,7 +50,7 @@ const ProcessFlow = ({ steps }: { steps: string[] }) => {
+         <div className="flex flex-wrap items-center gap-2 mb-5">
+             {steps.map((step, index) => (
+                 <div key={index} className="flex items-center mt-2">
+-                    <span className="font-bold text-sm text-neutral-800 bg-white px-4 py-2 rounded-full shadow border border-neutral-200 break-keep">
++                    <span className="font-bold text-[13px] text-neutral-800 bg-white px-3 py-1.5 rounded-full shadow-sm border border-neutral-200">
+                         {step}
+                     </span>
+                     {index < steps.length - 1 && (
+@@ -65,17 +64,17 @@ const ProcessFlow = ({ steps }: { steps: string[] }) => {
+ 
+ const DocumentTable = ({ headers, rows, color = "indigo" }: { headers: string[], rows: (string | React.ReactNode)[][], color?: string }) => {
+     const bgHeaderMap: Record<string, string> = {
+-        indigo: "bg-[#3949AB]", blue: "bg-[#0288D1]", green: "bg-[#2E7D32]", purple: "bg-[#7B1FA2]", orange: "bg-[#E65100]"
++        indigo: "bg-indigo-600", blue: "bg-[#0288D1]", green: "bg-[#2E7D32]", purple: "bg-[#7B1FA2]", orange: "bg-[#E65100]"
+     };
+     const headerClass = bgHeaderMap[color] || "bg-neutral-800";
+ 
+     return (
+-        <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden shadow-sm mb-5 break-keep">
++        <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden shadow-sm mb-5">
+             <table className="min-w-full text-sm sm:text-base border-collapse text-left">
+                 <thead className={`${headerClass} text-white`}>
+                     <tr>
+                         {headers.map((h, i) => (
+-                            <th key={i} scope="col" className={`px-4 py-3 font-semibold ${i === 0 ? 'w-16 sm:w-24 text-center border-r border-white/20' : ''}`}>
++                            <th key={i} scope="col" className={`px-4 py-3 font-semibold ${i === 0 ? 'w-20 sm:w-24 text-center border-r border-white/20' : ''}`}>
+                                 {h}
+                             </th>
+                         ))}
+@@ -85,7 +84,7 @@ const DocumentTable = ({ headers, rows, color = "indigo" }: { headers: string[],
+                     {rows.map((row, rIdx) => (
+                         <tr key={rIdx} className="hover:bg-neutral-50/50 transition-colors">
+                             {row.map((cell, cIdx) => (
+-                                <td key={cIdx} className={`px-4 py-3 font-medium ${cIdx === 0 ? 'text-center text-neutral-500 border-r border-neutral-100 font-bold' : ''}`}>
++                                <td key={cIdx} className={`px-4 py-3 font-medium ${cIdx === 0 ? 'text-center text-neutral-500 border-r border-neutral-100 font-bold whitespace-nowrap' : 'border-r border-neutral-100 last:border-r-0'}`}>
+                                     {cell}
+                                 </td>
+                             ))}
+@@ -105,14 +104,14 @@ export default function ProgramGuide() {
+         if (openModal !== category) return null;
+         return (
+             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setOpenModal(null)}>
+-                <div className="bg-white rounded-2xl shadow-xl w-[90vw] md:w-[80vw] max-w-none max-h-[90vh] overflow-y-auto transform transition-all animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
++                <div className="bg-white rounded-2xl shadow-xl w-[90vw] md:w-[80vw] max-w-none max-h-[90vh] overflow-y-auto transform transition-all animate-in fade-in zoom-in-95 duration-200 whitespace-pre-wrap break-keep" onClick={e => e.stopPropagation()}>
+                     <div className="sticky top-0 bg-white border-b border-neutral-200 p-5 sm:p-6 flex justify-between items-start sm:items-center z-10 shadow-sm">
+                         <div className="flex flex-col gap-1.5">
+-                            <h2 className={`text-xl sm:text-2xl font-bold break-keep text-${color}-800`}>{title}</h2>
++                            <h2 className={`text-xl sm:text-2xl font-bold text-${color}-800`}>{title}</h2>
+                         </div>
+                         <button onClick={() => setOpenModal(null)} className="text-neutral-400 hover:text-neutral-900 font-bold p-1 text-2xl leading-none">&times;</button>
+                     </div>
+-                    <div className="p-5 sm:p-8 text-neutral-800 text-sm sm:text-base leading-relaxed break-keep">
++                    <div className="p-5 sm:p-8 text-neutral-800 text-sm sm:text-base leading-relaxed">
+                         {children}
+                     </div>
+                     <div className="border-t border-neutral-200 p-5 sm:p-6 bg-neutral-50 flex justify-end sticky bottom-0 z-10 shadow-inner">
+@@ -126,34 +125,38 @@ export default function ProgramGuide() {
+     };
+ 
+     return (
+-        <div className="min-h-screen bg-neutral-50 py-8 px-4 sm:px-6 lg:px-8 font-sans break-keep">
++        <div className="min-h-screen bg-neutral-50 py-8 px-4 sm:px-6 lg:px-8 font-sans whitespace-pre-wrap break-keep">
+             <div className="max-w-5xl mx-auto space-y-6">
+ 
+                 {/* Header Section */}
+                 <div className="bg-white p-5 rounded-xl shadow-sm border border-neutral-200 text-center">
+-                    <h1 className="text-xl sm:text-2xl font-bold text-neutral-900 flex justify-center items-center break-keep">
++                    <h1 className="text-xl sm:text-2xl font-bold text-neutral-900 flex justify-center items-center">
+                         <Info className="w-6 h-6 mr-2 text-indigo-600 flex-shrink-0" />
+                         ?꾨줈洹몃옩 ?덈궡 諛??좎쓽?ы빆
+                     </h1>
+                 </div>
+ 
+                 {/* Section 1: 怨듯넻 二쇱쓽?ы빆 諛?吏?먭툑 ?깃꺽 */}
+-                <div className="bg-white border text-sm sm:text-base border-neutral-200 rounded-xl p-6 sm:p-8 shadow-sm break-keep text-neutral-800 leading-relaxed">
+-                    <h2 className="text-xl font-bold text-neutral-900 mb-4 pb-2 border-b border-neutral-100 flex items-center">
++                <div className="bg-white border text-sm sm:text-base border-neutral-200 rounded-xl p-6 sm:p-8 shadow-sm text-neutral-800 leading-relaxed">
++                    <h2 className="text-xl font-bold text-neutral-900 mb-6 pb-2 border-b border-neutral-100 flex items-center">
+                         <CheckCircle2 className="w-5 h-5 mr-2 text-indigo-600" /> 怨듯넻 ?덈궡?ы빆
+                     </h2>
+ 
+-                    <DefinitionBox title="媛쒖슂" color="indigo">
+-                        ?щ윭遺꾩씠 諛쏄쾶 ?섎뒗 ?섏꽦??吏?먭툑?숈? ?⑥닚???ν븰湲덉씠??吏?먭툑???꾨땲???뺣?(以묎린遺) ?덉궛?쇰줈 吏묓뻾?섎뒗 ?섏궗?낅퉬?숈엯?덈떎. 紐⑤뱺 吏異쒖? 李쎌뾽?꾩씠?쒖쓽 媛쒕컻쨌?ъ뾽??紐⑹쟻??吏곸젒 ?곌??섏뼱???섎ŉ, ?섏궗?낅떒?????寃곗젣(援щℓ????숉븯??諛⑹떇?쇰줈留?吏묓뻾?⑸땲?? ?묒궛 紐⑹쟻 臾쇳뭹쨌?⑹뿭 援щℓ 遺덇?, ?쒖젣???쒖옉 諛??쒖옣議곗궗 愿???ы빆留?吏묓뻾 媛??
+-                    </DefinitionBox>
++                    <div className="mb-6">
++                        <SectionBadge title="媛쒖슂" color="indigo" />
++                        <div className="font-medium text-neutral-800 p-2 bg-indigo-50/30 rounded-lg">?щ윭遺꾩씠 諛쏄쾶 ?섎뒗 ?섏꽦??吏?먭툑?숈? ?⑥닚???ν븰湲덉씠??吏?먭툑???꾨땲???뺣?(以묎린遺) ?덉궛?쇰줈 吏묓뻾?섎뒗 ?섏궗?낅퉬?숈엯?덈떎. ?곕씪??紐⑤뱺 吏異?鍮꾩슜)? ?ъ뾽怨꾪쉷?쒖뿉 紐낆떆??李쎌뾽?꾩씠?쒖쓽 媛쒕컻쨌?ъ뾽??紐⑹쟻??吏곸젒 ?곌? ?섏뼱???섎ŉ, ?섏궗?낅떒?????寃곗젣(援щℓ????숉븯??諛⑹떇?쇰줈留?吏묓뻾?⑸땲?? ?묒궛 紐⑹쟻??臾쇳뭹쨌?⑹뿭 援щℓ??遺덇?, ?쒖젣???쒖옉 諛??쒖옣議곗궗 愿???ы빆留?吏묓뻾 媛??</div>
++                    </div>
++
++                    <div className="mb-6">
++                        <SectionBadge title="吏?먭툑 ?ъ슜" color="indigo" />
++                        <div className="font-medium text-neutral-800 p-2 bg-indigo-50/30 rounded-lg">?꾧툑??李멸??먯뿉寃?吏湲됲븯??寃껋씠 ?꾨땶 李멸??먯쓽 ?붿껌??諛쏄퀬 ?ъ뾽?⑥뿉???由?寃곗젣?섎뒗 諛⑹떇. 利? 李멸??먭? ?섑븘?뷀븳 ?덈ぉ?숈쓣 ?쒖븞?섎㈃, ?ъ뾽?⑥씠 ?뱀씤 ??吏곸젒 寃곗젣?섎뒗 援ъ“ (?몄긽 嫄곕옒 湲곕낯, ?좉껐??遺덇?)</div>
++                    </div>
+ 
+-                    <NoticeCard color="neutral">
+-                        <strong className="block text-indigo-700">吏?먭툑 ?ъ슜</strong>
+-                        <p>?꾧툑??李멸??먯뿉寃?吏湲됲븯??寃껋씠 ?꾨땶 李멸??먯쓽 ?붿껌??諛쏄퀬 ?ъ뾽?⑥뿉???由?寃곗젣?섎뒗 諛⑹떇. 利? 李멸??먭? ?섑븘?뷀븳 ?덈ぉ?숈쓣 ?쒖븞?섎㈃, ?ъ뾽?⑥씠 ?뱀씤 ??吏곸젒 寃곗젣?섎뒗 援ъ“(?몄긽 嫄곕옒 湲곕낯, ?좉껐??遺덇?).</p>
+-                    </NoticeCard>
++                    <div className="mb-6 p-5 bg-neutral-50 border border-neutral-200 rounded-xl shadow-sm">
++                        <div className="flex items-center mb-3">
++                            <SectionBadge title="湲곕낯 吏꾪뻾 ?덉감" color="indigo" />
++                        </div>
+ 
+-                    <div className="mb-5 p-5 bg-neutral-50 border border-neutral-200 rounded-xl shadow-sm">
+-                        <strong className="block text-neutral-900 text-lg mb-3">湲곕낯 吏꾪뻾 ?덉감</strong>
+                         <strong className="block text-indigo-700 text-sm mb-1">[吏?먭툑 ?ъ슜 (1~3二??뚯슂)]</strong>
+                         <ProcessFlow steps={['?좎궗???좎껌(??', '?〓궡遺 寃??, '??듅????吏꾪뻾', '?ｊ껐??諛?吏湲?]} />
+ 
+@@ -162,23 +165,23 @@ export default function ProgramGuide() {
+                     </div>
+ 
+                     <NoticeCard color="red">
+-                        <strong className="block text-red-800">?좎쓽?ы빆</strong>
++                        <strong className="block text-red-800 text-lg mb-1">?좎쓽?ы빆</strong>
+                         <ul className="list-disc pl-5 space-y-1.5 text-red-900 font-medium pb-1 mt-2">
+-                            <li>?뚯감???ъ뾽鍮??ъ슜 湲덉븸 理쒕????ш쾶 ?섏떗?쒖삤.</li>
+-                            <li>?뚯씪紐?洹쒖튃: ?좎쭨_?紐?鍮꾨ぉ_湲덉븸 (?? 251103_?띻만???щ즺鍮?3,000,000??</li>
+-                            <li>?ъ뾽怨꾪쉷??誘멸린??嫄??좎껌 遺덇?.</li>
+-                            <li>? ?ъ뾽 以묐났吏湲?遺덇?.</li>
+-                            <li>?먮낯?쒕쪟 愿由?泥좎?.</li>
+-                            <li>湲곗옄??PC, ?명듃遺????먯궛??臾쇳뭹) 援щℓ 遺덇?.</li>
+-                            <li>媛쒖씤 紐낆쓽 寃곗젣 遺덇?.</li>
+-                            <li>遺덈챸?뺥븳 吏異쒖? 異뷀썑 遺?곸젙 ?먯젙 媛?μ꽦???쎈땲??</li>
++                            <li>?뚯감???ъ뾽鍮??ъ슜 湲덉븸 理쒕????ш쾶</li>
++                            <li>?뚯씪紐?洹쒖튃: ?좎쭨_?紐?鍮꾨ぉ_湲덉븸</li>
++                            <li>?ъ뾽怨꾪쉷??誘멸린??嫄??좎껌 遺덇?</li>
++                            <li>? ?ъ뾽 以묐났吏湲?遺덇?</li>
++                            <li>?먮낯?쒕쪟 愿由?泥좎?</li>
++                            <li>湲곗옄??PC, ?명듃遺????먯궛??臾쇳뭹) 援щℓ 遺덇?</li>
++                            <li>媛쒖씤 紐낆쓽 寃곗젣 遺덇?</li>
++                            <li>遺덈챸?뺥븳 吏異쒖? 異뷀썑 遺?곸젙 ?먯젙 媛??</li>
+                         </ul>
+                     </NoticeCard>
+                 </div>
+ 
+                 {/* Section 2: 鍮꾨ぉ蹂???踰꾪듉 Grid (4 categories, 2x2 layout) */}
+                 <div>
+-                    <h3 className="text-lg font-bold text-neutral-900 mb-4 flex items-center justify-center break-keep">
++                    <h3 className="text-lg font-bold text-neutral-900 mb-4 flex items-center justify-center">
+                         <FileText className="w-5 h-5 mr-2 text-indigo-600 flex-shrink-0" />
+                         吏??鍮꾨ぉ蹂??곸꽭 ?덈궡 (?대┃ ???앹뾽)
+                     </h3>
+@@ -187,22 +190,22 @@ export default function ProgramGuide() {
+ 
+                         <button onClick={() => setOpenModal('?щ퉬')} className="group flex flex-col items-center justify-center p-6 bg-white border border-[#0288D1]/30 rounded-xl shadow-sm hover:shadow-md hover:border-[#0288D1] hover:bg-[#E1F5FE]/30 transition-all duration-200">
+                             <Plane className="w-8 h-8 text-[#0288D1] mb-3 group-hover:scale-110 transition-transform flex-shrink-0" />
+-                            <span className="text-lg font-bold text-[#0277BD] break-keep">?щ퉬</span>
++                            <span className="text-lg font-bold text-[#0277BD]">?щ퉬</span>
+                         </button>
+ 
+                         <button onClick={() => setOpenModal('?щ즺鍮?)} className="group flex flex-col items-center justify-center p-6 bg-white border border-[#2E7D32]/30 rounded-xl shadow-sm hover:shadow-md hover:border-[#2E7D32] hover:bg-[#E8F5E9]/30 transition-all duration-200">
+                             <Box className="w-8 h-8 text-[#2E7D32] mb-3 group-hover:scale-110 transition-transform flex-shrink-0" />
+-                            <span className="text-lg font-bold text-[#1B5E20] break-keep">?щ즺鍮?/span>
++                            <span className="text-lg font-bold text-[#1B5E20]">?щ즺鍮?/span>
+                         </button>
+ 
+                         <button onClick={() => setOpenModal('?몄＜?⑹뿭鍮?)} className="group flex flex-col items-center justify-center p-6 bg-white border border-[#7B1FA2]/30 rounded-xl shadow-sm hover:shadow-md hover:border-[#7B1FA2] hover:bg-[#F3E5F5]/30 transition-all duration-200">
+                             <Briefcase className="w-8 h-8 text-[#7B1FA2] mb-3 group-hover:scale-110 transition-transform flex-shrink-0" />
+-                            <span className="text-lg font-bold text-[#4A148C] break-keep">?몄＜?⑹뿭鍮?/span>
++                            <span className="text-lg font-bold text-[#4A148C]">?몄＜?⑹뿭鍮?/span>
+                         </button>
+ 
+                         <button onClick={() => setOpenModal('吏湲됱닔?섎즺')} className="group flex flex-col items-center justify-center p-6 bg-white border border-[#F57F17]/30 rounded-xl shadow-sm hover:shadow-md hover:border-[#F57F17] hover:bg-[#FFF8E1]/30 transition-all duration-200">
+                             <UserCheck className="w-8 h-8 text-[#F57F17] mb-3 group-hover:scale-110 transition-transform flex-shrink-0" />
+-                            <span className="text-lg font-bold text-[#E65100] break-keep">吏湲됱닔?섎즺(硫섑넗留?</span>
++                            <span className="text-lg font-bold text-[#E65100]">吏湲됱닔?섎즺(硫섑넗留?</span>
+                         </button>
+ 
+                     </div>
+@@ -210,12 +213,13 @@ export default function ProgramGuide() {
+ 
+                 {/* Modals */}
+                 <Modal category="?щ퉬" title="?щ퉬" color="blue">
+-                    <DefinitionBox title="?뺤쓽" color="blue">
+-                        ?뚯옱吏 ??異쒖옣 ?깆쓽 ?ъ쑀濡?吏묓뻾?섎뒗 鍮꾩슜.
+-                    </DefinitionBox>
++                    <div className="mb-6">
++                        <SectionBadge title="?뺤쓽" color="blue" />
++                        <div className="font-medium text-blue-900 p-2 bg-blue-50/50 rounded-lg">?뚯옱吏 ??異쒖옣 ?깆쓽 ?ъ쑀濡?吏묓뻾?섎뒗 鍮꾩슜.</div>
++                    </div>
+ 
+                     <NoticeCard color="blue">
+-                        <strong className="block text-lg">?좎쓽?ы빆</strong>
++                        <strong className="block text-lg mb-1">?좎쓽?ы빆</strong>
+                         <ul className="list-disc pl-5 space-y-1.5 font-medium mt-1">
+                             <li>援먰넻?곸닔利??좎껌??= ?묒듅???쇱튂 ?꾩닔 (?뱀씤 ??媛쒖씤移대뱶 寃곗젣).</li>
+                             <li>?以묎탳???댁슜 (?곕벑/?쇰컲???댄븯 ?ㅻ퉬).</li>
+@@ -223,22 +227,22 @@ export default function ProgramGuide() {
+                         </ul>
+                     </NoticeCard>
+ 
+-                    <h3 className="text-lg font-bold text-neutral-900 mb-2">吏異??꾩슂 ?쒕쪟 紐⑸줉</h3>
++                    <h3 className="text-lg font-bold text-neutral-900 mb-2 mt-6">吏異??꾩슂 ?쒕쪟 紐⑸줉</h3>
+                     <DocumentTable color="blue" headers={["?쒕쾲", "?쒖텧 ?쒕쪟"]} rows={[
+-                        ["1", "異쒖옣 ?몃? 怨꾪쉷??],
+-                        ["2", "異쒖옣 蹂닿퀬??],
+-                        ["3", "?곸닔利?],
+-                        ["4", "?듭옣 諛??좊텇利??щ낯"]
++                        ["1", "怨꾪쉷??(異쒖옣 ?몃? 怨꾪쉷??"],
++                        ["2", "蹂닿퀬??(異쒖옣 蹂닿퀬??"],
++                        ["3", "?곸닔利?諛??듭옣/?좊텇利??щ낯"]
+                     ]} />
+                 </Modal>
+ 
+                 <Modal category="?щ즺鍮? title="?щ즺鍮? color="green">
+-                    <DefinitionBox title="?뺤쓽" color="green">
+-                        ?쒖젣???쒖옉???뚮え?섎뒗 ?щ즺 援щℓ 鍮꾩슜.
+-                    </DefinitionBox>
++                    <div className="mb-6">
++                        <SectionBadge title="?뺤쓽" color="green" />
++                        <div className="font-medium text-green-900 p-2 bg-green-50/50 rounded-lg">?쒖젣???쒖옉???뚮え?섎뒗 ?щ즺 援щℓ 鍮꾩슜.</div>
++                    </div>
+ 
+                     <NoticeCard color="green">
+-                        <strong className="block text-lg">?좎쓽?ы빆</strong>
++                        <strong className="block text-lg mb-1">?좎쓽?ы빆</strong>
+                         <ul className="list-disc pl-5 space-y-1.5 font-medium mt-1">
+                             <li>湲곌퀎?μ튂 ???먯궛??臾쇳뭹 ?덈? 援щℓ 遺덇?.</li>
+                             <li>?댁쇅 吏곴뎄 諛?援щ룆 ?쒕퉬???대룄鍮??? 援щℓ 遺덇?.</li>
+@@ -246,29 +250,36 @@ export default function ProgramGuide() {
+                         </ul>
+                     </NoticeCard>
+ 
+-                    <h3 className="text-lg font-bold text-green-800 mb-2">[?⑤씪??寃곗젣 ?? ?쒕쪟 紐⑸줉</h3>
+-                    <DocumentTable color="green" headers={["援щ텇", "?쒖텧 ?쒕쪟"]} rows={[
+-                        ["?꾩닔", "援щℓ ?좎껌 怨꾪쉷??(?ъ쟾 寃???꾩닔)"],
+-                        ["?꾩닔", "臾쇳뭹 援ъ엯 ?붿껌??],
+-                        ["?꾩닔", "臾쇳뭹 利앸튃?ъ쭊"]
+-                    ]} />
++                    <div className="mt-8 space-y-8">
++                        <div>
++                            <h3 className="text-lg font-bold text-green-800 mb-2 border-l-4 border-green-600 pl-3">[?⑤씪??寃곗젣 ?? ?쒕쪟 紐⑸줉</h3>
++                            <DocumentTable color="green" headers={["援щ텇", "?쒖텧 ?쒕쪟"]} rows={[
++                                ["?꾩닔", "援щℓ ?좎껌 怨꾪쉷??(?ъ쟾 寃???꾩닔)"],
++                                ["?꾩닔", "臾쇳뭹 援ъ엯 ?붿껌??],
++                                ["?꾩닔", "臾쇳뭹 利앸튃?ъ쭊"]
++                            ]} />
++                        </div>
+ 
+-                    <h3 className="text-lg font-bold text-green-800 mt-6 mb-2">[?ㅽ봽?쇱씤 寃곗젣 ?? ?쒕쪟 紐⑸줉</h3>
+-                    <DocumentTable color="green" headers={["援щ텇", "?쒖텧 ?쒕쪟"]} rows={[
+-                        ["?낆쬆", "援щℓ ?좎껌 怨꾪쉷??(?ъ쟾 寃???꾩닔)"],
+-                        ["利앸튃", "嫄곕옒紐낆꽭??],
+-                        ["?뺤씤", "臾쇳뭹 利앸튃?ъ쭊"],
+-                        ["?낆껜", "?ъ뾽?먮벑濡앹쬆, ?밸굺?ы빆, 泥?졃怨꾩빟 ?댄뻾?쒖빟?? ?섏쓽怨꾩빟 泥닿껐 ?쒗븳 ?щ? ?뺤씤?? ?듭옣?щ낯"]
+-                    ]} />
++                        <div>
++                            <h3 className="text-lg font-bold text-green-800 mb-2 border-l-4 border-green-600 pl-3">[?ㅽ봽?쇱씤 寃곗젣 ?? ?쒕쪟 紐⑸줉</h3>
++                            <DocumentTable color="green" headers={["援щ텇", "?쒖텧 ?쒕쪟"]} rows={[
++                                ["?낆쬆", "援щℓ ?좎껌 怨꾪쉷??(?ъ쟾 寃???꾩닔)"],
++                                ["利앸튃", "嫄곕옒紐낆꽭??],
++                                ["?뺤씤", "臾쇳뭹 利앸튃?ъ쭊"],
++                                ["?낆껜", "?ъ뾽?먮벑濡앹쬆, ?밸굺?ы빆, 泥?졃怨꾩빟 ?댄뻾?쒖빟?? ?섏쓽怨꾩빟 泥닿껐 ?쒗븳 ?щ? ?뺤씤?? ?듭옣?щ낯"]
++                            ]} />
++                        </div>
++                    </div>
+                 </Modal>
+ 
+                 <Modal category="?몄＜?⑹뿭鍮? title="?몄＜?⑹뿭鍮? color="purple">
+-                    <DefinitionBox title="?뺤쓽" color="purple">
+-                        李쎌뾽 怨좊룄??紐⑹쟻?쇰줈 ?쇰? 怨듭젙???몃? ?낆껜???섎ː?섏뿬 ?쒖옉?섎뒗 鍮꾩슜.
+-                    </DefinitionBox>
++                    <div className="mb-6">
++                        <SectionBadge title="?뺤쓽" color="purple" />
++                        <div className="font-medium text-purple-900 p-2 bg-purple-50/50 rounded-lg">李쎌뾽 怨좊룄??紐⑹쟻?쇰줈 ?쇰? 怨듭젙???몃? ?낆껜???섎ː?섏뿬 ?쒖옉?섎뒗 鍮꾩슜.</div>
++                    </div>
+ 
+                     <NoticeCard color="purple">
+-                        <strong className="block text-lg">?좎쓽?ы빆</strong>
++                        <strong className="block text-lg mb-1">?좎쓽?ы빆</strong>
+                         <ul className="list-disc pl-5 space-y-1.5 font-medium mt-1">
+                             <li>?몃? ?꾨Ц?낆껜??1???댁긽???대떦 遺꾩빞 醫낆궗 寃쎈젰/?좎궗?꾩씠???쒖옉 寃쏀뿕 蹂댁쑀 ?낆껜 ?붾쭩.</li>
+                             <li className="text-red-600 font-bold">?꾨━?쒖꽌 以묎컻 ?쒕퉬???щそ, ?꾩떆耳???瑜??듯븳 吏?먭툑 吏묓뻾 遺덇?.</li>
+@@ -277,30 +288,37 @@ export default function ProgramGuide() {
+                         </ul>
+                     </NoticeCard>
+ 
+-                    <h3 className="text-lg font-bold text-purple-800 mb-2">[怨꾩빟 ?? 13醫??쒕쪟 紐⑸줉</h3>
+-                    <DocumentTable color="purple" headers={["遺꾨쪟", "?곸꽭 ?쒖텧 ?쒕쪟 紐⑸줉"]} rows={[
+-                        ["湲곕낯", "?쒖?怨꾩빟?? 怨쇱뾽吏?쒖꽌"],
+-                        ["寃ъ쟻", "寃ъ쟻?? 鍮꾧탳寃ъ쟻??],
+-                        ["?쒖빟", "怨꾩빟蹂댁쬆湲?硫댁젣媛곸꽌, ?섏쓽怨꾩빟 泥닿껐 ?쒗븳 ?щ? ?뺤씤?? 泥?졃怨꾩빟 ?댄뻾 ?쒖빟??],
+-                        ["?낆껜", "?ъ뾽?먮벑濡앹쬆, ?듭옣?щ낯, ?멸컧利앸챸??],
+-                        ["?⑹꽭", "?⑹꽭利앸챸?? 吏諛⑹꽭 ?⑹꽭 利앸챸?? 4?蹂댄뿕 ?꾨궔 利앸챸??]
+-                    ]} />
++                    <div className="mt-8 space-y-8">
++                        <div>
++                            <h3 className="text-lg font-bold text-purple-800 mb-2 border-l-4 border-purple-600 pl-3">[怨꾩빟 ?? ?쒕쪟 紐⑸줉</h3>
++                            <DocumentTable color="purple" headers={["遺꾨쪟", "?곸꽭 ?쒖텧 ?쒕쪟 紐⑸줉"]} rows={[
++                                ["湲곕낯", "?쒖?怨꾩빟?? 怨쇱뾽吏?쒖꽌"],
++                                ["寃ъ쟻", "寃ъ쟻?? 鍮꾧탳寃ъ쟻??],
++                                ["?쒖빟", "怨꾩빟蹂댁쬆湲?硫댁젣媛곸꽌, ?섏쓽怨꾩빟 泥닿껐 ?쒗븳 ?щ? ?뺤씤?? 泥?졃怨꾩빟 ?댄뻾 ?쒖빟??],
++                                ["?낆껜", "?ъ뾽?먮벑濡앹쬆, ?듭옣?щ낯, ?멸컧利앸챸??],
++                                ["?⑹꽭", "?⑹꽭利앸챸?? 吏諛⑹꽭 ?⑹꽭 利앸챸?? 4?蹂댄뿕 ?꾨궔 利앸챸??]
++                            ]} />
++                        </div>
+ 
+-                    <h3 className="text-lg font-bold text-purple-800 mt-6 mb-2">[?湲?吏湲??? 4醫??쒕쪟 紐⑸줉</h3>
+-                    <DocumentTable color="purple" headers={["?붽굔", "?곸꽭 ?쒖텧 ?쒕쪟 紐⑸줉"]} rows={[
+-                        ["寃??, "嫄곕옒紐낆꽭?? 李⑹닔怨? ?꾨즺怨? ?⑹뿭 寃곌낵蹂닿퀬??]
+-                    ]} />
++                        <div>
++                            <h3 className="text-lg font-bold text-purple-800 mb-2 border-l-4 border-purple-600 pl-3">[?湲?吏湲??? ?쒕쪟 紐⑸줉</h3>
++                            <DocumentTable color="purple" headers={["?붽굔", "?곸꽭 ?쒖텧 ?쒕쪟 紐⑸줉"]} rows={[
++                                ["寃??, "嫄곕옒紐낆꽭?? 李⑹닔怨? ?꾨즺怨? ?⑹뿭 寃곌낵蹂닿퀬??]
++                            ]} />
++                        </div>
++                    </div>
+                 </Modal>
+ 
+                 <Modal category="吏湲됱닔?섎즺" title="吏湲됱닔?섎즺 (硫섑넗留?" color="orange">
+-                    <DefinitionBox title="?뺤쓽" color="orange">
+-                        鍮꾩쫰?덉뒪 紐⑤뜽 怨좊룄?? ?쒗뭹 媛쒖꽑, ?됱젙 ?먮Ц ?깆쓽 紐⑹쟻?쇰줈 ?몃? ?꾨Ц媛 硫섑넗留?吏꾪뻾 ??吏湲됲븯??鍮꾩슜.
+-                    </DefinitionBox>
++                    <div className="mb-6">
++                        <SectionBadge title="?뺤쓽" color="orange" />
++                        <div className="font-medium text-orange-900 p-2 bg-orange-50/50 rounded-lg">鍮꾩쫰?덉뒪 紐⑤뜽 怨좊룄?? ?쒗뭹 媛쒖꽑, ?됱젙 ?먮Ц ?깆쓽 紐⑹쟻?쇰줈 ?몃? ?꾨Ц媛 硫섑넗留?吏꾪뻾 ??吏湲됲븯??鍮꾩슜.</div>
++                    </div>
+ 
+                     <NoticeCard color="orange">
+-                        <strong className="block text-lg mb-2">硫섑넗 ?먭꺽 ?좎쓽?ы빆</strong>
+-                        <p className="mb-2">李쎌뾽/踰빧룻뻾???꾨Ц媛 ?꾩큺 紐⑹쟻留??덉슜 (???ы빆 誘몃떖 ??吏湲?遺덇?).</p>
+-                        <ol className="list-decimal pl-5 space-y-1 font-medium bg-orange-50/50 p-2 rounded">
++                        <strong className="block text-lg mb-2">?좎쓽?ы빆 (硫섑넗 ?먭꺽 洹쒖젙)</strong>
++                        <p className="mb-2 font-medium">李쎌뾽/踰빧룻뻾???꾨Ц媛 ?꾩큺 紐⑹쟻留??덉슜 (???ы빆 誘몃떖 ??吏湲?遺덇?).</p>
++                        <ol className="list-decimal pl-5 space-y-1 font-bold bg-orange-50/50 p-3 rounded-lg border border-orange-100 mt-2 text-orange-900">
+                             <li>諛뺤궗?숈쐞 ?뚯???/li>
+                             <li>?앹궗?숈쐞 + 5???댁긽 寃쎈젰</li>
+                             <li>?숈궗?숈쐞 + 7???댁긽 寃쎈젰</li>
+@@ -310,7 +328,7 @@ export default function ProgramGuide() {
+                         </ol>
+                     </NoticeCard>
+ 
+-                    <h3 className="text-lg font-bold text-neutral-900 mb-2">吏異??꾩슂 ?쒕쪟 紐⑸줉</h3>
++                    <h3 className="text-lg font-bold text-neutral-900 mb-2 mt-6">吏異??꾩슂 ?쒕쪟 紐⑸줉</h3>
+                     <DocumentTable color="orange" headers={["踰덊샇", "?곸꽭 ?쒕쪟"]} rows={[
+                         ["1", "?꾨Ц媛 ?꾩큺?숈쓽??],
+                         ["2", "硫섑넗留?蹂닿퀬??(?꾩옣?ъ쭊 ?꾩닔)"],
+
+commit 0d25c19123c392ebd85c407de2e3449b3304ebf7
+Author: user <user@gemini.net>
+Date:   Thu Mar 5 11:03:27 2026 +0900
+
+    feat(ProgramGuide): reconstruct using semantic semantic UI component abstractions (DefinitionBox, NoticeCard)
+
+diff --git a/src/pages/student/ProgramGuide.tsx b/src/pages/student/ProgramGuide.tsx
+index 2a4b780..46992dc 100644
+--- a/src/pages/student/ProgramGuide.tsx
++++ b/src/pages/student/ProgramGuide.tsx
+@@ -1,21 +1,118 @@
+ import { useState } from 'react';
+-import { Info, FileText, Plane, Box, Briefcase, UserCheck } from 'lucide-react';
++import { Info, AlertCircle, FileText, Plane, Box, Briefcase, UserCheck, ArrowRight, CheckCircle2 } from 'lucide-react';
++
++// Design Components
++const DefinitionBox = ({ title, children, color = "indigo" }: { title: string, children: React.ReactNode, color?: "indigo" | "blue" | "green" | "purple" | "orange" }) => {
++    const colorMap = {
++        indigo: "bg-indigo-50 border-indigo-200 text-indigo-900",
++        blue: "bg-blue-50 border-blue-200 text-blue-900",
++        green: "bg-green-50 border-green-200 text-green-900",
++        purple: "bg-purple-50 border-purple-200 text-purple-900",
++        orange: "bg-orange-50 border-orange-200 text-orange-900"
++    };
++    return (
++        <div className={`p-4 rounded-xl border font-medium mb-5 shadow-sm break-keep ${colorMap[color]}`}>
++            <strong className="block mb-1 text-lg">{title}</strong>
++            {children}
++        </div>
++    );
++};
++
++const NoticeCard = ({ children, color = "neutral" }: { children: React.ReactNode, color?: "neutral" | "red" | "blue" | "green" | "purple" | "orange" }) => {
++    const colorMap = {
++        neutral: "bg-neutral-50 border-neutral-200 text-neutral-800",
++        red: "bg-red-50 border-red-200 text-red-900",
++        blue: "bg-blue-50 border-blue-200 text-blue-900",
++        green: "bg-green-50 border-green-200 text-green-900",
++        purple: "bg-purple-50 border-purple-200 text-purple-900",
++        orange: "bg-orange-50 border-orange-200 text-orange-900"
++    };
++    const iconColorMap = {
++        neutral: "text-neutral-500",
++        red: "text-red-500",
++        blue: "text-blue-500",
++        green: "text-green-500",
++        purple: "text-purple-500",
++        orange: "text-orange-500"
++    };
++
++    return (
++        <div className={`p-5 mb-5 rounded-xl border flex items-start gap-3 shadow-sm break-keep ${colorMap[color]}`}>
++            <AlertCircle className={`w-5 h-5 flex-shrink-0 mt-0.5 ${iconColorMap[color]}`} />
++            <div className="flex-1 space-y-2">
++                {children}
++            </div>
++        </div>
++    );
++};
++
++const ProcessFlow = ({ steps }: { steps: string[] }) => {
++    return (
++        <div className="flex flex-wrap items-center gap-2 mb-5">
++            {steps.map((step, index) => (
++                <div key={index} className="flex items-center mt-2">
++                    <span className="font-bold text-sm text-neutral-800 bg-white px-4 py-2 rounded-full shadow border border-neutral-200 break-keep">
++                        {step}
++                    </span>
++                    {index < steps.length - 1 && (
++                        <ArrowRight className="w-4 h-4 text-neutral-400 mx-1 flex-shrink-0" />
++                    )}
++                </div>
++            ))}
++        </div>
++    );
++};
++
++const DocumentTable = ({ headers, rows, color = "indigo" }: { headers: string[], rows: (string | React.ReactNode)[][], color?: string }) => {
++    const bgHeaderMap: Record<string, string> = {
++        indigo: "bg-[#3949AB]", blue: "bg-[#0288D1]", green: "bg-[#2E7D32]", purple: "bg-[#7B1FA2]", orange: "bg-[#E65100]"
++    };
++    const headerClass = bgHeaderMap[color] || "bg-neutral-800";
++
++    return (
++        <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden shadow-sm mb-5 break-keep">
++            <table className="min-w-full text-sm sm:text-base border-collapse text-left">
++                <thead className={`${headerClass} text-white`}>
++                    <tr>
++                        {headers.map((h, i) => (
++                            <th key={i} scope="col" className={`px-4 py-3 font-semibold ${i === 0 ? 'w-16 sm:w-24 text-center border-r border-white/20' : ''}`}>
++                                {h}
++                            </th>
++                        ))}
++                    </tr>
++                </thead>
++                <tbody className="text-neutral-800 divide-y divide-neutral-100">
++                    {rows.map((row, rIdx) => (
++                        <tr key={rIdx} className="hover:bg-neutral-50/50 transition-colors">
++                            {row.map((cell, cIdx) => (
++                                <td key={cIdx} className={`px-4 py-3 font-medium ${cIdx === 0 ? 'text-center text-neutral-500 border-r border-neutral-100 font-bold' : ''}`}>
++                                    {cell}
++                                </td>
++                            ))}
++                        </tr>
++                    ))}
++                </tbody>
++            </table>
++        </div>
++    );
++};
++
+ 
+ export default function ProgramGuide() {
+     const [openModal, setOpenModal] = useState<string | null>(null);
+ 
+-    const Modal = ({ category, title, children }: { category: string, title: string, children: React.ReactNode }) => {
++    const Modal = ({ category, title, color, children }: { category: string, title: string, color: string, children: React.ReactNode }) => {
+         if (openModal !== category) return null;
+         return (
+             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setOpenModal(null)}>
+                 <div className="bg-white rounded-2xl shadow-xl w-[90vw] md:w-[80vw] max-w-none max-h-[90vh] overflow-y-auto transform transition-all animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+                     <div className="sticky top-0 bg-white border-b border-neutral-200 p-5 sm:p-6 flex justify-between items-start sm:items-center z-10 shadow-sm">
+                         <div className="flex flex-col gap-1.5">
+-                            <h2 className="text-xl sm:text-2xl font-bold text-neutral-900 break-keep whitespace-pre-wrap">{title}</h2>
++                            <h2 className={`text-xl sm:text-2xl font-bold break-keep text-${color}-800`}>{title}</h2>
+                         </div>
+                         <button onClick={() => setOpenModal(null)} className="text-neutral-400 hover:text-neutral-900 font-bold p-1 text-2xl leading-none">&times;</button>
+                     </div>
+-                    <div className="p-5 sm:p-8 text-neutral-800 text-sm sm:text-base leading-relaxed break-keep whitespace-pre-wrap">
++                    <div className="p-5 sm:p-8 text-neutral-800 text-sm sm:text-base leading-relaxed break-keep">
+                         {children}
+                     </div>
+                     <div className="border-t border-neutral-200 p-5 sm:p-6 bg-neutral-50 flex justify-end sticky bottom-0 z-10 shadow-inner">
+@@ -29,74 +126,59 @@ export default function ProgramGuide() {
+     };
+ 
+     return (
+-        <div className="min-h-screen bg-neutral-50 py-8 px-4 sm:px-6 lg:px-8 font-sans break-keep whitespace-pre-wrap">
++        <div className="min-h-screen bg-neutral-50 py-8 px-4 sm:px-6 lg:px-8 font-sans break-keep">
+             <div className="max-w-5xl mx-auto space-y-6">
+ 
+                 {/* Header Section */}
+                 <div className="bg-white p-5 rounded-xl shadow-sm border border-neutral-200 text-center">
+-                    <h1 className="text-xl sm:text-2xl font-bold text-neutral-900 flex justify-center items-center break-keep whitespace-pre-wrap">
++                    <h1 className="text-xl sm:text-2xl font-bold text-neutral-900 flex justify-center items-center break-keep">
+                         <Info className="w-6 h-6 mr-2 text-indigo-600 flex-shrink-0" />
+                         ?꾨줈洹몃옩 ?덈궡 諛??좎쓽?ы빆
+                     </h1>
+                 </div>
+ 
+                 {/* Section 1: 怨듯넻 二쇱쓽?ы빆 諛?吏?먭툑 ?깃꺽 */}
+-                <div className="bg-white border text-sm sm:text-base border-neutral-200 rounded-xl p-6 sm:p-8 shadow-sm break-keep whitespace-pre-wrap text-neutral-800 leading-relaxed">
+-                    <h2 className="text-xl font-bold text-neutral-900 mb-4 pb-2 border-b border-neutral-100">[[怨듯넻]]</h2>
+-                    <div className="mb-6 font-bold text-indigo-900 bg-indigo-50 p-4 rounded-lg">
+-                        ((媛쒖슂))?щ윭遺꾩씠 諛쏄쾶 ?섎뒗 ?섏꽦??吏?먭툑?숈? ?⑥닚???ν븰湲덉씠??吏?먭툑???꾨땲???뺣?(以묎린遺) ?덉궛?쇰줈 吏묓뻾?섎뒗 ?섏궗?낅퉬?숈엯?덈떎. ?곕씪??紐⑤뱺 吏異?鍮꾩슜)? ?ъ뾽怨꾪쉷?쒖뿉 紐낆떆??李쎌뾽?꾩씠?쒖쓽 媛쒕컻쨌?ъ뾽??紐⑹쟻??吏곸젒 ?곌? ?섏뼱???섎ŉ, ?섏궗?낅떒?????寃곗젣(援щℓ????숉븯??諛⑹떇?쇰줈留?吏묓뻾?⑸땲??{"\n\n"}
+-                        ?묒궛 紐⑹쟻??臾쇳뭹쨌?⑹뿭 援щℓ??遺덇?, ?쒖젣???쒖옉 諛??쒖옣議곗궗 愿???ы빆留?吏묓뻾 媛??{"\n\n"}
+-                        <span className="text-red-600">??紐⑤뱺 嫄곕옒???멸툑怨꾩궛?쒖? ?곸닔利앹? ?섍꼍?곴뎅由쎈??숆탳 ?고븰?묐젰?ⓥ?紐낆쓽濡?諛쒗뻾?섏뼱???⑸땲??{"\n"}
+-                            ??李멸??먭? 媛쒖씤移대뱶濡?寃곗젣?섍굅?? 媛쒖씤 怨꾩쥖濡??↔툑??寃쎌슦 ?ъ뾽鍮꾨줈 ?몄젙?섏? ?딆뒿?덈떎.</span>
++                <div className="bg-white border text-sm sm:text-base border-neutral-200 rounded-xl p-6 sm:p-8 shadow-sm break-keep text-neutral-800 leading-relaxed">
++                    <h2 className="text-xl font-bold text-neutral-900 mb-4 pb-2 border-b border-neutral-100 flex items-center">
++                        <CheckCircle2 className="w-5 h-5 mr-2 text-indigo-600" /> 怨듯넻 ?덈궡?ы빆
++                    </h2>
++
++                    <DefinitionBox title="媛쒖슂" color="indigo">
++                        ?щ윭遺꾩씠 諛쏄쾶 ?섎뒗 ?섏꽦??吏?먭툑?숈? ?⑥닚???ν븰湲덉씠??吏?먭툑???꾨땲???뺣?(以묎린遺) ?덉궛?쇰줈 吏묓뻾?섎뒗 ?섏궗?낅퉬?숈엯?덈떎. 紐⑤뱺 吏異쒖? 李쎌뾽?꾩씠?쒖쓽 媛쒕컻쨌?ъ뾽??紐⑹쟻??吏곸젒 ?곌??섏뼱???섎ŉ, ?섏궗?낅떒?????寃곗젣(援щℓ????숉븯??諛⑹떇?쇰줈留?吏묓뻾?⑸땲?? ?묒궛 紐⑹쟻 臾쇳뭹쨌?⑹뿭 援щℓ 遺덇?, ?쒖젣???쒖옉 諛??쒖옣議곗궗 愿???ы빆留?吏묓뻾 媛??
++                    </DefinitionBox>
++
++                    <NoticeCard color="neutral">
++                        <strong className="block text-indigo-700">吏?먭툑 ?ъ슜</strong>
++                        <p>?꾧툑??李멸??먯뿉寃?吏湲됲븯??寃껋씠 ?꾨땶 李멸??먯쓽 ?붿껌??諛쏄퀬 ?ъ뾽?⑥뿉???由?寃곗젣?섎뒗 諛⑹떇. 利? 李멸??먭? ?섑븘?뷀븳 ?덈ぉ?숈쓣 ?쒖븞?섎㈃, ?ъ뾽?⑥씠 ?뱀씤 ??吏곸젒 寃곗젣?섎뒗 援ъ“(?몄긽 嫄곕옒 湲곕낯, ?좉껐??遺덇?).</p>
++                    </NoticeCard>
++
++                    <div className="mb-5 p-5 bg-neutral-50 border border-neutral-200 rounded-xl shadow-sm">
++                        <strong className="block text-neutral-900 text-lg mb-3">湲곕낯 吏꾪뻾 ?덉감</strong>
++                        <strong className="block text-indigo-700 text-sm mb-1">[吏?먭툑 ?ъ슜 (1~3二??뚯슂)]</strong>
++                        <ProcessFlow steps={['?좎궗???좎껌(??', '?〓궡遺 寃??, '??듅????吏꾪뻾', '?ｊ껐??諛?吏湲?]} />
++
++                        <strong className="block text-indigo-700 text-sm mb-1 mt-4">[怨꾪쉷 蹂寃?(1~2二??뚯슂)]</strong>
++                        <ProcessFlow steps={['?좎궗???좎껌(紐?', '?〓궡遺 寃??, '??듅????寃곗옱', '?ｌ셿猷?諛?諛섏쁺']} />
+                     </div>
+ 
+-                    <div className="space-y-6">
+-                        <div>
+-                            <h3 className="font-bold text-neutral-900 text-lg mb-2">((吏?먭툑 ?ъ슜))</h3>
+-                            - ?꾧툑??李멸??먯뿉寃?吏湲됲븯??寃껋씠 ?꾨땶 李멸??먯쓽 ?붿껌??諛쏄퀬 ?ъ뾽?⑥뿉???由?寃곗젣?섎뒗 諛⑹떇{"\n"}
+-                            利? 李멸??먭? ?섑븘?뷀븳 ?덈ぉ?숈쓣 ?쒖븞?섎㈃, ?ъ뾽?⑥씠 ?뱀씤 ??吏곸젒 寃곗젣?섎뒗 援ъ“{"\n"}
+-                            (?몄긽 嫄곕옒 湲곕낯, ?좉껐???좎?湲됯툒) 遺덇?)
+-                        </div>
+-
+-                        <div>
+-                            <h3 className="font-bold text-neutral-900 text-lg mb-2">((湲곕낯 吏꾪뻾 ?덉감))</h3>
+-                            <strong className="text-indigo-700 block mb-1">[吏?먭툑 ?ъ슜 ?꾨줈?몄뒪]</strong>
+-                            ???ъ쟾 ?좎껌(留ㅼ＜ ?? ?????대? 寃??諛??????뱀씤 ??吏꾪뻾 ????寃곗젣 諛?吏湲?"\n"}
+-                            *?ㅼ젣 ?湲?吏湲됯퉴吏 ??1~3二??뚯슂 ?????덉쓬.{"\n"}
+-                            ???ъ쟾 ?좎껌: ?좎껌?쒖? 寃ъ쟻?쒕? ?ы븿?섏뿬 ?대떦?먯뿉寃??쒖텧{"\n\n"}
+-
+-                            <strong className="text-indigo-700 block mb-1">[怨꾪쉷 蹂寃??꾨줈?몄뒪]</strong>
+-                            ???ъ쟾 ?좎껌(留ㅼ＜ 紐? ?????대? 寃???????뱀씤 ??寃곗옱 吏꾪뻾 ????寃곗옱 ?꾨즺 諛?諛섏쁺{"\n"}
+-                            *?ㅼ젣 蹂寃쎄퉴吏 ??1~2二??뚯슂 ?????덉쓬.{"\n"}
+-                            **湲덉븸??蹂寃쎌씠 ?꾨땶 ?댁슜 蹂寃쎌쓽 寃쎌슦, ??湲곗“媛 蹂寃쎈릺吏 ?딅뒗 ??洹몃?濡?吏꾪뻾
+-                        </div>
+-
+-                        <div>
+-                            <h3 className="font-bold text-red-700 text-lg mb-2">((?좎쓽?ы빆))</h3>
+-                            <ul className="list-disc pl-5 space-y-1.5 marker:text-red-500">
+-                                <li>?뚯감???ъ뾽鍮??ъ슜 湲덉븸 理쒕????ш쾶</li>
+-                                <li>紐⑤뱺 ?쒕쪟??1:1 移댁뭅?ㅽ넚 ??붾? ?듯빐 ?묒닔</li>
+-                                <li>?뚯씪紐?洹쒖튃: ?좎쭨_?紐?鍮꾨ぉ_湲덉븸 ?? 251103_?띻만???щ즺鍮?3,000,000??/li>
+-                                <li>?ъ뾽怨꾪쉷?쒖긽, ?먭툑 ?쒖슜 怨꾪쉷?쒖뿉 湲곗옱?섏? ?딆? 嫄댁? ?ъ쟾 ?좎껌??遺덇??섎ŉ, ?ъ쟾 ?좎껌 ?묒닔?섏? ?딆? 寃곗젣 嫄댁? 吏묓뻾 遺덇?</li>
+-                                <li>? ?ъ뾽(?⑦궎吏 ??怨?以묐났吏湲?遺덇?</li>
+-                                <li>?먮낯?쒕쪟 遺꾩떎 ??吏湲됱씠 ?섏? ?딄굅???ъ옉?깅릺?댁빞 ?섎뒗 踰덇굅濡쒖???諛쒖깮 ?????덉쑝誘濡??먮낯?쒕쪟 愿由?泥좎?.</li>
+-                                <li>?ъ뾽 醫낅즺 ?쒖젏??寃곌낵蹂닿퀬?쒖? ?ъ뾽?먮벑濡앹쬆 異쒖썝 紐⑤몢 ?꾩닔</li>
+-                                <li className="text-red-600 font-bold">湲곌컙 ??誘몄젣異??? 吏?먭툑 ?꾩븸 ?섏닔 媛??/li>
+-                                <li className="text-red-600 font-bold">湲곗옄??援щℓ 遺덇?(PC, ?명듃遺? ?뚮툝由????먯궛??臾쇳뭹)</li>
+-                                <li>(理쒖쥌)蹂닿퀬?쒖뿉??"?대뼡 鍮꾨ぉ?쇰줈 臾댁뾿???쒖옉쨌異쒖썝쨌?몄쬆?덈뒗吏"瑜?援ъ껜?곸쑝濡?湲곗옱?댁빞 ??/li>
+-                                <li>?ъ뾽?⑥? 利앸튃 ?꾨씫 ???ъ뾽鍮?吏湲??먮뒗 ?뺤궛??蹂대쪟?????덉쓬</li>
+-                                <li className="font-bold text-red-600">媛쒖씤 紐낆쓽 寃곗젣 遺덇?, 紐⑤뱺 嫄곕옒???ъ뾽?⑥쓣 ?듯빐 吏꾪뻾</li>
+-                                <li>吏異???諛섎뱶???덈ぉ?붿껌???쒖텧 ???뱀씤 ??援щℓ ?덉감 以??/li>
+-                                <li className="font-bold text-red-600">利앸튃?쒕쪟(?멸툑怨꾩궛?? 怨꾩빟?? ?⑺뭹?뺤씤??????諛섎뱶??寃쎌긽援?┰? ?고븰?묐젰??紐낆쓽濡?諛쒗뻾</li>
+-                                <li>遺덈챸?뺥븳 吏異쒖? 異뷀썑 ?섏닔 ?먮뒗 遺?곸젙 ?먯젙</li>
+-                            </ul>
+-                        </div>
+-                    </div>
++                    <NoticeCard color="red">
++                        <strong className="block text-red-800">?좎쓽?ы빆</strong>
++                        <ul className="list-disc pl-5 space-y-1.5 text-red-900 font-medium pb-1 mt-2">
++                            <li>?뚯감???ъ뾽鍮??ъ슜 湲덉븸 理쒕????ш쾶 ?섏떗?쒖삤.</li>
++                            <li>?뚯씪紐?洹쒖튃: ?좎쭨_?紐?鍮꾨ぉ_湲덉븸 (?? 251103_?띻만???щ즺鍮?3,000,000??</li>
++                            <li>?ъ뾽怨꾪쉷??誘멸린??嫄??좎껌 遺덇?.</li>
++                            <li>? ?ъ뾽 以묐났吏湲?遺덇?.</li>
++                            <li>?먮낯?쒕쪟 愿由?泥좎?.</li>
++                            <li>湲곗옄??PC, ?명듃遺????먯궛??臾쇳뭹) 援щℓ 遺덇?.</li>
++                            <li>媛쒖씤 紐낆쓽 寃곗젣 遺덇?.</li>
++                            <li>遺덈챸?뺥븳 吏異쒖? 異뷀썑 遺?곸젙 ?먯젙 媛?μ꽦???쎈땲??</li>
++                        </ul>
++                    </NoticeCard>
+                 </div>
+ 
+                 {/* Section 2: 鍮꾨ぉ蹂???踰꾪듉 Grid (4 categories, 2x2 layout) */}
+                 <div>
+-                    <h3 className="text-lg font-bold text-neutral-900 mb-4 flex items-center justify-center break-keep whitespace-pre-wrap">
++                    <h3 className="text-lg font-bold text-neutral-900 mb-4 flex items-center justify-center break-keep">
+                         <FileText className="w-5 h-5 mr-2 text-indigo-600 flex-shrink-0" />
+                         吏??鍮꾨ぉ蹂??곸꽭 ?덈궡 (?대┃ ???앹뾽)
+                     </h3>
+@@ -105,143 +187,136 @@ export default function ProgramGuide() {
+ 
+                         <button onClick={() => setOpenModal('?щ퉬')} className="group flex flex-col items-center justify-center p-6 bg-white border border-[#0288D1]/30 rounded-xl shadow-sm hover:shadow-md hover:border-[#0288D1] hover:bg-[#E1F5FE]/30 transition-all duration-200">
+                             <Plane className="w-8 h-8 text-[#0288D1] mb-3 group-hover:scale-110 transition-transform flex-shrink-0" />
+-                            <span className="text-lg font-bold text-[#0277BD] mb-1 break-keep">?щ퉬</span>
++                            <span className="text-lg font-bold text-[#0277BD] break-keep">?щ퉬</span>
+                         </button>
+ 
+                         <button onClick={() => setOpenModal('?щ즺鍮?)} className="group flex flex-col items-center justify-center p-6 bg-white border border-[#2E7D32]/30 rounded-xl shadow-sm hover:shadow-md hover:border-[#2E7D32] hover:bg-[#E8F5E9]/30 transition-all duration-200">
+                             <Box className="w-8 h-8 text-[#2E7D32] mb-3 group-hover:scale-110 transition-transform flex-shrink-0" />
+-                            <span className="text-lg font-bold text-[#1B5E20] mb-1 break-keep">?щ즺鍮?/span>
++                            <span className="text-lg font-bold text-[#1B5E20] break-keep">?щ즺鍮?/span>
+                         </button>
+ 
+                         <button onClick={() => setOpenModal('?몄＜?⑹뿭鍮?)} className="group flex flex-col items-center justify-center p-6 bg-white border border-[#7B1FA2]/30 rounded-xl shadow-sm hover:shadow-md hover:border-[#7B1FA2] hover:bg-[#F3E5F5]/30 transition-all duration-200">
+                             <Briefcase className="w-8 h-8 text-[#7B1FA2] mb-3 group-hover:scale-110 transition-transform flex-shrink-0" />
+-                            <span className="text-lg font-bold text-[#4A148C] mb-1 break-keep">?몄＜?⑹뿭鍮?/span>
++                            <span className="text-lg font-bold text-[#4A148C] break-keep">?몄＜?⑹뿭鍮?/span>
+                         </button>
+ 
+                         <button onClick={() => setOpenModal('吏湲됱닔?섎즺')} className="group flex flex-col items-center justify-center p-6 bg-white border border-[#F57F17]/30 rounded-xl shadow-sm hover:shadow-md hover:border-[#F57F17] hover:bg-[#FFF8E1]/30 transition-all duration-200">
+                             <UserCheck className="w-8 h-8 text-[#F57F17] mb-3 group-hover:scale-110 transition-transform flex-shrink-0" />
+-                            <span className="text-lg font-bold text-[#E65100] mb-1 break-keep">吏湲됱닔?섎즺(硫섑넗留?</span>
++                            <span className="text-lg font-bold text-[#E65100] break-keep">吏湲됱닔?섎즺(硫섑넗留?</span>
+                         </button>
+ 
+                     </div>
+                 </div>
+ 
+                 {/* Modals */}
+-                <Modal
+-                    category="?щ퉬"
+-                    title="[[?щ퉬]]"
+-                >
+-                    <div className="space-y-5">
+-                        <div className="bg-indigo-50 p-4 rounded-lg font-medium text-indigo-900">
+-                            <strong>((?뺤쓽))</strong>?щ퉬???뚯옱吏瑜?踰쀬뼱??? 吏??異쒖옣 ?깆쓽 ?ъ쑀濡?吏묓뻾?섎뒗 鍮꾩슜??留먰븳??
+-                        </div>
+-
+-                        <div>
+-                            <strong className="text-lg text-neutral-900 block mb-2">((?좎쓽?ы빆))</strong>
+-                            援먰넻?곸닔利앹쓽 寃쎌슦 ?ъ뾽?⑥쓽 異쒖옣 ?뱀씤 ?댄썑 ? 援ъ꽦?먮퀎 媛쒖씤移대뱶濡?寃곗젣?섏뿬???쒕떎.(異쒖옣?좎껌?쇱옄? ?묒듅?쇱옄???숈씪?댁빞 ?쒕떎.){"\n\n"}
+-                            ?щ퉬??異쒖옣 ?? ? 援ъ꽦?먮퀎 媛곴컖 媛쒖씤怨꾩쥖濡??ㅻ퉬 吏湲됰맂??{"\n\n"}
+-                            援먰넻?곸닔利앹? 吏꾩＜-異쒖옣吏/異쒖옣吏-吏꾩＜(媛?1????媛 ?쒓린???ㅼ젣 ?곸닔利앹쓣 ?쒖텧?섏뿬???쒕떎. ?? ?곸닔利???異쒖옣吏, 異쒖옣?쇱옄, 湲덉븸??諛섎뱶???ы븿?섏뼱?덈뒗 ?먮즺瑜??쒖텧?댁빞 ?쒕떎. 異쒖옣吏 ?대룞???꾪븳 援먰넻?몄? 諛섎뱶???以묎탳?듭쓣 ?댁슜?댁빞 ?쒕떎.{"\n\n"}
+-                            <strong className="block mb-1">李멸퀬 ?ы빆</strong>
+-                            踰꾩뒪?댁엫? ?곕벑?붽툑 ?댄븯???ㅻ퉬濡?吏湲됰릺硫? ?꾨━誘몄뾼 踰꾩뒪???ъ빞 踰꾩뒪瑜??댁슜?섎뜑?쇰룄 ?곕벑?붽툑?쇰줈 吏湲됰맂?? (?쇰컲踰꾩뒪 ?묒듅 寃쎌슦 ?대떦湲덉븸?쇰줈 吏湲됰맖){"\n"}
+-                            泥좊룄?댁엫? KTX ?쇰컲???댄븯 ?댁슜 媛??KTX ?뱀떎? 遺덇?, SRT 諛??덈쭏?꾪샇 ?깆? 媛???섎ŉ, ?ㅻ퉬瑜?吏湲됲븳??{"\n\n"}
+-                            異쒖옣 利앸튃?ъ쭊? 異쒖옣吏?먯꽌 ?쒕룞?섎뒗 ?ъ쭊??珥ъ쁺?섏뿬 利앸튃?쒖떇??留욊쾶 ?묒꽦?섏뿬 ?쒖텧?댁빞 ?쒕떎.{"\n\n"}
+-                            <span className="text-red-600 font-bold">?⑥닚 誘명똿???꾪븳 ?ы뻾???щ퉬??吏湲?遺덇?.</span>
+-                        </div>
+-
+-                        <div className="bg-neutral-100 p-5 rounded-lg border border-neutral-200">
+-                            <strong className="text-lg text-neutral-900 block mb-3">((吏異??꾩슂 ?쒕쪟 紐⑸줉))</strong>
+-                            <ul className="list-disc pl-5 space-y-2">
+-                                <li>異쒖옣 ?몃? 怨꾪쉷???ъ쟾 ?쒖텧 諛??뱀씤 ?꾩슂)</li>
+-                                <li>異쒖옣 蹂닿퀬???ы썑 ?쒖텧)</li>
+-                                <li>?곸닔利?諛??듭옣/?좊텇利??щ낯</li>
+-                            </ul>
+-                        </div>
+-                    </div>
++                <Modal category="?щ퉬" title="?щ퉬" color="blue">
++                    <DefinitionBox title="?뺤쓽" color="blue">
++                        ?뚯옱吏 ??異쒖옣 ?깆쓽 ?ъ쑀濡?吏묓뻾?섎뒗 鍮꾩슜.
++                    </DefinitionBox>
++
++                    <NoticeCard color="blue">
++                        <strong className="block text-lg">?좎쓽?ы빆</strong>
++                        <ul className="list-disc pl-5 space-y-1.5 font-medium mt-1">
++                            <li>援먰넻?곸닔利??좎껌??= ?묒듅???쇱튂 ?꾩닔 (?뱀씤 ??媛쒖씤移대뱶 寃곗젣).</li>
++                            <li>?以묎탳???댁슜 (?곕벑/?쇰컲???댄븯 ?ㅻ퉬).</li>
++                            <li>?⑥닚 誘명똿 紐⑹쟻??異쒖옣? ?щ퉬 吏湲?遺덇?.</li>
++                        </ul>
++                    </NoticeCard>
++
++                    <h3 className="text-lg font-bold text-neutral-900 mb-2">吏異??꾩슂 ?쒕쪟 紐⑸줉</h3>
++                    <DocumentTable color="blue" headers={["?쒕쾲", "?쒖텧 ?쒕쪟"]} rows={[
++                        ["1", "異쒖옣 ?몃? 怨꾪쉷??],
++                        ["2", "異쒖옣 蹂닿퀬??],
++                        ["3", "?곸닔利?],
++                        ["4", "?듭옣 諛??좊텇利??щ낯"]
++                    ]} />
+                 </Modal>
+ 
+-                <Modal
+-                    category="?щ즺鍮?
+-                    title="[[?щ즺鍮?]"
+-                >
+-                    <div className="space-y-5">
+-                        <div className="bg-green-50 p-4 rounded-lg font-medium text-green-900 border border-green-100">
+-                            <strong>((?뺤쓽))</strong>?щ즺鍮꾨뒗 ?ъ뾽怨꾪쉷???곸쓽 ?ъ뾽?붾? ?꾪빐 ?뚮え?섎뒗 ?щ즺 ?먮뒗 ?먮즺 ?깆쓣 援щℓ?섎뒗 鍮꾩슜??留먰븳??
+-                        </div>
+-
+-                        <div>
+-                            <strong className="text-lg text-neutral-900 block mb-2">((?좎쓽?ы빆))</strong>
+-                            <span className="text-red-600 font-bold">痍⑤뱷???ы솕(湲곌퀎쨌?μ튂) 諛?MVP瑜??쒖옉?⑥뿉 ?뚮え?섏? ?딅뒗 ?덈ぉ? 援щℓ 遺덇?.{"\n"}
+-                                ?댁쇅 吏곴뎄 ?곹뭹 諛?援щ룆 ?쒕퉬???대룄鍮??? 援щℓ 遺덇?</span>{"\n\n"}
+-                            ?щ즺鍮꾨뒗 ?ъ뾽?⑥뿉??留ㅼ＜ ?붿슂???쇨큵 ?좎껌 ?묒닔 ????~ ???쇨큵 援щℓ ?쒕떎.{"\n"}
+-                            ?좎껌 媛??湲곌컙? 留ㅼ＜ ?붿슂?쇨퉴吏濡? ?ъ뾽?⑥뿉 援щℓ?좎껌 怨꾪쉷?? 臾쇳뭹 援ъ엯 ?붿껌?? 寃ъ쟻?쒕? ?쒖텧?댁빞 ?쒕떎.{"\n"}
+-                            援щℓ?좎껌 怨꾪쉷??諛?臾쇳뭹 援ъ엯 ?붿껌?쒖? 寃ъ쟻?쒖쓽 ?댁슜???쇱튂?댁빞 ?쒕떎.{"\n"}
+-                            ?щ즺瑜??섎졊?섍퀬 臾쇳뭹蹂?寃???ъ쭊??珥ъ쁺 ?? 愿??利앸튃 ?쒖떇??留욎텛???쒖텧?쒕떎.{"\n\n"}
+-                            援щℓ ?덈ぉ? 援щℓ ?섎웾??遺꾨챸?섍쾶 ?쒕윭?섍쾶 寃??珥ъ쁺?섏뿬???쒕떎.
+-                        </div>
+-
+-                        <div className="bg-neutral-100 p-5 rounded-lg border border-neutral-200">
+-                            <strong className="text-lg text-neutral-900 block mb-4">((吏異??꾩슂 ?쒕쪟 紐⑸줉 - ?⑤씪?멸낵 ?ㅽ봽?쇱씤 援щ텇?섏뿬 援ы쁽))</strong>
+-
+-                            <strong className="block text-indigo-700 mb-2">[?⑤씪??寃곗젣 ??</strong>
+-                            1. 援щℓ ?좎껌 怨꾪쉷???ъ쟾 寃???꾩닔), 2. 臾쇳뭹 援ъ엯 ?붿껌???⑤씪??寃곗젣 ???대떦), 4. 臾쇳뭹 利앸튃?ъ쭊.{"\n\n"}
+-
+-                            <strong className="block text-indigo-700 mb-2">[?ㅽ봽?쇱씤 寃곗젣 ??</strong>
+-                            1. 援щℓ ?좎껌 怨꾪쉷???ъ쟾 寃???꾩닔), 3. 嫄곕옒紐낆꽭???ㅽ봽?쇱씤 寃곗젣 ???대떦), 4. 臾쇳뭹 利앸튃?ъ쭊, 5. ?ъ뾽?먮벑濡앹쬆(?ㅽ봽?쇱씤 寃곗젣 ???대떦), 6. ?밸굺?ы빆(?ㅽ봽?쇱씤 寃곗젣 ???대떦), 7. 泥?졃怨꾩빟 ?댄뻾?쒖빟???ㅽ봽?쇱씤 寃곗젣 ???대떦), 8. ?섏쓽怨꾩빟 泥닿껐 ?쒗븳 ?щ? ?뺤씤???ㅽ봽?쇱씤 寃곗젣 ???대떦), 9. ?듭옣?щ낯(?ㅽ봽?쇱씤 寃곗젣 ???대떦).
+-                        </div>
+-                    </div>
++                <Modal category="?щ즺鍮? title="?щ즺鍮? color="green">
++                    <DefinitionBox title="?뺤쓽" color="green">
++                        ?쒖젣???쒖옉???뚮え?섎뒗 ?щ즺 援щℓ 鍮꾩슜.
++                    </DefinitionBox>
++
++                    <NoticeCard color="green">
++                        <strong className="block text-lg">?좎쓽?ы빆</strong>
++                        <ul className="list-disc pl-5 space-y-1.5 font-medium mt-1">
++                            <li>湲곌퀎?μ튂 ???먯궛??臾쇳뭹 ?덈? 援щℓ 遺덇?.</li>
++                            <li>?댁쇅 吏곴뎄 諛?援щ룆 ?쒕퉬???대룄鍮??? 援щℓ 遺덇?.</li>
++                            <li>留ㅼ＜ ?붿슂???좎껌嫄댁뿉 ?쒗븯??????援щℓ 吏꾪뻾.</li>
++                        </ul>
++                    </NoticeCard>
++
++                    <h3 className="text-lg font-bold text-green-800 mb-2">[?⑤씪??寃곗젣 ?? ?쒕쪟 紐⑸줉</h3>
++                    <DocumentTable color="green" headers={["援щ텇", "?쒖텧 ?쒕쪟"]} rows={[
++                        ["?꾩닔", "援щℓ ?좎껌 怨꾪쉷??(?ъ쟾 寃???꾩닔)"],
++                        ["?꾩닔", "臾쇳뭹 援ъ엯 ?붿껌??],
++                        ["?꾩닔", "臾쇳뭹 利앸튃?ъ쭊"]
++                    ]} />
++
++                    <h3 className="text-lg font-bold text-green-800 mt-6 mb-2">[?ㅽ봽?쇱씤 寃곗젣 ?? ?쒕쪟 紐⑸줉</h3>
++                    <DocumentTable color="green" headers={["援щ텇", "?쒖텧 ?쒕쪟"]} rows={[
++                        ["?낆쬆", "援щℓ ?좎껌 怨꾪쉷??(?ъ쟾 寃???꾩닔)"],
++                        ["利앸튃", "嫄곕옒紐낆꽭??],
++                        ["?뺤씤", "臾쇳뭹 利앸튃?ъ쭊"],
++                        ["?낆껜", "?ъ뾽?먮벑濡앹쬆, ?밸굺?ы빆, 泥?졃怨꾩빟 ?댄뻾?쒖빟?? ?섏쓽怨꾩빟 泥닿껐 ?쒗븳 ?щ? ?뺤씤?? ?듭옣?щ낯"]
++                    ]} />
+                 </Modal>
+ 
+-                <Modal
+-                    category="?몄＜?⑹뿭鍮?
+-                    title="[[?몄＜?⑹뿭鍮?]"
+-                >
+-                    <div className="space-y-5">
+-                        <div className="bg-purple-50 p-4 rounded-lg font-medium text-purple-900 border border-purple-100">
+-                            <strong>((?뺤쓽))</strong>?몄＜?⑹뿭鍮꾨뒗 ?ъ뾽怨꾪쉷???곸쓽 李쎌뾽?꾩씠?쒖쓣 怨좊룄?뷀븯嫄곕굹 ?ъ뾽怨꾪쉷???섑뻾?섍린 ?꾪븳 紐⑹쟻?쇰줈 ?쇰? 怨듭젙???몃? ?낆껜???섎ː?섏뿬 ?쒖옉?섍퀬, ?댁뿉 ????媛瑜?吏湲됲븯??鍮꾩슜??留먰븳??
+-                        </div>
+-
+-                        <div>
+-                            <strong className="text-lg text-neutral-900 block mb-2">((?좎쓽?ы빆))</strong>
+-                            ?몃? ?꾨Ц?낆껜??1???댁긽???대떦 遺꾩빞 醫낆궗寃쎈젰 諛??몄＜?⑹뿭???李쎌뾽?꾩씠?쒓낵 ?좎궗???꾩씠?쒖쓽 ?쒖옉 寃쏀뿕 蹂댁쑀 ?꾩슂{"\n\n"}
+-                            ?몄＜?낆껜???ъ뾽?먮벑濡앹쬆 ???곸젙 ?낆쥌(?낇깭쨌醫낅ぉ) ?щ?瑜??꾪엳 ?뺤씤{"\n\n"}
+-                            <span className="text-red-600 font-bold">?꾨━?쒖꽌 以묎컻 ?쒕퉬???щそ, ?꾩떆耳???瑜??듯븳 吏?먭툑 吏묓뻾 遺덇?</span>{"\n\n"}
+-                            ?묒궛紐⑹쟻??湲덊삎?쒖옉鍮꾨뒗 吏묓뻾 遺덇? (?쒓툑?뺤젣??吏묓뻾 媛??{"\n\n"}
+-                            ?⑹뿭 怨꾩빟 泥섎━ ?덉감???뚯슂?섎뒗 ?쒓컙(1~2二???媛먯븞?섏뿬 怨꾪쉷蹂대떎 ?쇱컢 ?ъ쟾 ?좎껌 ?꾩슂
+-                        </div>
+-
+-                        <div className="bg-neutral-100 p-5 rounded-lg border border-neutral-200">
+-                            <strong className="text-lg text-neutral-900 block mb-4">((吏異??꾩슂 ?쒕쪟 紐⑸줉 - 怨꾩빟 ?쒖? ?湲?吏湲??쒕? ?쒓컖?곸쑝濡?援щ텇?섏뿬 援ы쁽))</strong>
+-
+-                            <strong className="block text-purple-700 mb-2">(怨꾩빟 ??</strong>
+-                            1. ?쒖? 怨꾩빟?? 2. 怨쇱뾽吏?쒖꽌, 3. 寃ъ쟻?? 4. 鍮꾧탳寃ъ쟻?? 5. 怨꾩빟蹂댁쬆湲?硫댁젣媛곸꽌, 6. ?섏쓽怨꾩빟 泥닿껐 ?쒗븳 ?щ? ?뺤씤?? 7. 泥?졃怨꾩빟 ?댄뻾 ?쒖빟?? 8. ?ъ뾽?먮벑濡앹쬆, 9. ?듭옣?щ낯, 10. ?멸컧利앸챸?? 11. ?⑹꽭利앸챸?? 12. 吏諛⑹꽭 ?⑹꽭 利앸챸?? 13. 4?蹂댄뿕 ?꾨궔 利앸챸??{"\n\n"}
+-
+-                            <strong className="block text-purple-700 mb-2">(?湲?吏湲???</strong>
+-                            1. 嫄곕옒紐낆꽭?? 2. 李⑹닔怨? 3. ?꾨즺怨? 4. ?⑹뿭 寃곌낵蹂닿퀬??
+-                        </div>
+-                    </div>
++                <Modal category="?몄＜?⑹뿭鍮? title="?몄＜?⑹뿭鍮? color="purple">
++                    <DefinitionBox title="?뺤쓽" color="purple">
++                        李쎌뾽 怨좊룄??紐⑹쟻?쇰줈 ?쇰? 怨듭젙???몃? ?낆껜???섎ː?섏뿬 ?쒖옉?섎뒗 鍮꾩슜.
++                    </DefinitionBox>
++
++                    <NoticeCard color="purple">
++                        <strong className="block text-lg">?좎쓽?ы빆</strong>
++                        <ul className="list-disc pl-5 space-y-1.5 font-medium mt-1">
++                            <li>?몃? ?꾨Ц?낆껜??1???댁긽???대떦 遺꾩빞 醫낆궗 寃쎈젰/?좎궗?꾩씠???쒖옉 寃쏀뿕 蹂댁쑀 ?낆껜 ?붾쭩.</li>
++                            <li className="text-red-600 font-bold">?꾨━?쒖꽌 以묎컻 ?쒕퉬???щそ, ?꾩떆耳???瑜??듯븳 吏?먭툑 吏묓뻾 遺덇?.</li>
++                            <li>?묒궛 紐⑹쟻??湲덊삎?쒖옉 吏묓뻾 遺덇?(?쒓툑?뺤젣??吏묓뻾 媛??.</li>
++                            <li>?⑹뿭 怨꾩빟 泥섎━ ?덉감 ?뚯슂?쒓컙(1~2二???媛먯븞?섏뿬 ?ъ쟾 ?좎껌 ?붾쭩.</li>
++                        </ul>
++                    </NoticeCard>
++
++                    <h3 className="text-lg font-bold text-purple-800 mb-2">[怨꾩빟 ?? 13醫??쒕쪟 紐⑸줉</h3>
++                    <DocumentTable color="purple" headers={["遺꾨쪟", "?곸꽭 ?쒖텧 ?쒕쪟 紐⑸줉"]} rows={[
++                        ["湲곕낯", "?쒖?怨꾩빟?? 怨쇱뾽吏?쒖꽌"],
++                        ["寃ъ쟻", "寃ъ쟻?? 鍮꾧탳寃ъ쟻??],
++                        ["?쒖빟", "怨꾩빟蹂댁쬆湲?硫댁젣媛곸꽌, ?섏쓽怨꾩빟 泥닿껐 ?쒗븳 ?щ? ?뺤씤?? 泥?졃怨꾩빟 ?댄뻾 ?쒖빟??],
++                        ["?낆껜", "?ъ뾽?먮벑濡앹쬆, ?듭옣?щ낯, ?멸컧利앸챸??],
++                        ["?⑹꽭", "?⑹꽭利앸챸?? 吏諛⑹꽭 ?⑹꽭 利앸챸?? 4?蹂댄뿕 ?꾨궔 利앸챸??]
++                    ]} />
++
++                    <h3 className="text-lg font-bold text-purple-800 mt-6 mb-2">[?湲?吏湲??? 4醫??쒕쪟 紐⑸줉</h3>
++                    <DocumentTable color="purple" headers={["?붽굔", "?곸꽭 ?쒖텧 ?쒕쪟 紐⑸줉"]} rows={[
++                        ["寃??, "嫄곕옒紐낆꽭?? 李⑹닔怨? ?꾨즺怨? ?⑹뿭 寃곌낵蹂닿퀬??]
++                    ]} />
+                 </Modal>
+ 
+-                <Modal
+-                    category="吏湲됱닔?섎즺"
+-                    title="[[吏湲됱닔?섎즺(硫섑넗留?]]"
+-                >
+-                    <div className="space-y-5">
+-                        <div className="bg-orange-50 p-4 rounded-lg font-medium text-orange-900 border border-orange-100">
+-                            <strong>((?뺤쓽))</strong>?꾨Ц媛?쒖슜鍮?硫섑넗留????ъ뾽紐⑤뜽 媛쒕컻, ?쒗뭹 媛쒖꽑 ?깆쓣 ?꾪븳 硫섑넗留?吏꾪뻾 ??吏湲됲븯??鍮꾩슜??留먰븳??
+-                        </div>
+-
+-                        <div>
+-                            <strong className="text-lg text-neutral-900 block mb-2">((?좎쓽?ы빆))</strong>
+-                            - ?ъ뾽?꾩씠??怨좊룄?붾? ?꾪븳 李쎌뾽 ?꾨Ц媛 ?먮뒗, ?ъ뾽?먮벑濡앹쬆 異쒖썝 ??踰빧룻뻾???꾨Ц媛瑜??꾩큺?????뚯슂?섎뒗 鍮꾩슜?댁뼱????{"\n\n"}
+-                            <strong className="block text-orange-700 mb-1">硫섑넗 ?먭꺽: </strong>
+-                            1. 諛뺤궗?숈쐞 ?뚯??? 2. ?앹궗?숈쐞 ?뚯???以??대떦 遺꾩빞 5???댁긽 寃쎈젰?? 3. ?숈궗?숈쐞 ?뚯???以??대떦 遺꾩빞 7???댁긽 寃쎈젰?? 4. 議곌탳???댁긽????숆탳?? 5. 5湲??먮뒗 ?댁뿉 ?곷떦?섎뒗 怨듬Т?먯쑝濡??대떦遺꾩빞 5???댁긽 寃쎈젰?? 6. 湲곗닠?? 蹂由ъ궗, 湲곗닠吏?꾩궗, 寃쎌쁺吏?꾩궗, 怨듭씤?뚭퀎?? ?몃Т?? 蹂?몄궗, 怨듭씤?몃Т?????꾨Ц吏?醫낆궗?? ?????ы빆???곹빀?섏? ?딆? ?먯뿉寃뚮뒗 硫섑넗留곷퉬 吏湲?遺덇?.
+-                        </div>
+-
+-                        <div className="bg-neutral-100 p-5 rounded-lg border border-neutral-200">
+-                            <strong className="text-lg text-neutral-900 block mb-3">((吏異??꾩슂 ?쒕쪟 紐⑸줉))</strong>
+-                            1. ?꾨Ц媛 ?꾩큺?숈쓽??6??, 2. 硫섑넗留?蹂닿퀬???꾩옣?ъ쭊 ?꾩닔, ?⑤씪?몄쓽 寃쎌슦 硫섑넗留??쒖옉?쒓컙怨??앹떆媛꾩씠 ?섏삤?꾨줉), 3. 硫섑넗 ?좊텇利? ?듭옣?щ낯, 4. ?대젰??
+-                        </div>
+-                    </div>
++                <Modal category="吏湲됱닔?섎즺" title="吏湲됱닔?섎즺 (硫섑넗留?" color="orange">
++                    <DefinitionBox title="?뺤쓽" color="orange">
++                        鍮꾩쫰?덉뒪 紐⑤뜽 怨좊룄?? ?쒗뭹 媛쒖꽑, ?됱젙 ?먮Ц ?깆쓽 紐⑹쟻?쇰줈 ?몃? ?꾨Ц媛 硫섑넗留?吏꾪뻾 ??吏湲됲븯??鍮꾩슜.
++                    </DefinitionBox>
++
++                    <NoticeCard color="orange">
++                        <strong className="block text-lg mb-2">硫섑넗 ?먭꺽 ?좎쓽?ы빆</strong>
++                        <p className="mb-2">李쎌뾽/踰빧룻뻾???꾨Ц媛 ?꾩큺 紐⑹쟻留??덉슜 (???ы빆 誘몃떖 ??吏湲?遺덇?).</p>
++                        <ol className="list-decimal pl-5 space-y-1 font-medium bg-orange-50/50 p-2 rounded">
++                            <li>諛뺤궗?숈쐞 ?뚯???/li>
++                            <li>?앹궗?숈쐞 + 5???댁긽 寃쎈젰</li>
++                            <li>?숈궗?숈쐞 + 7???댁긽 寃쎈젰</li>
++                            <li>議곌탳???댁긽????숆탳??/li>
++                            <li>5湲?怨듬Т??+ 5??寃쎈젰</li>
++                            <li>?꾨Ц吏?醫낆궗??湲곗닠?? 蹂由ъ궗, ?뚭퀎?? ?몃Т?? 蹂?몄궗 ??</li>
++                        </ol>
++                    </NoticeCard>
++
++                    <h3 className="text-lg font-bold text-neutral-900 mb-2">吏異??꾩슂 ?쒕쪟 紐⑸줉</h3>
++                    <DocumentTable color="orange" headers={["踰덊샇", "?곸꽭 ?쒕쪟"]} rows={[
++                        ["1", "?꾨Ц媛 ?꾩큺?숈쓽??],
++                        ["2", "硫섑넗留?蹂닿퀬??(?꾩옣?ъ쭊 ?꾩닔)"],
++                        ["3", "?좊텇利??щ낯 諛??듭옣?щ낯"],
++                        ["4", "硫섑넗 ?대젰??]
++                    ]} />
+                 </Modal>
+ 
+             </div>
+
+commit d5a97ceaa7e6955d39a0a0dbc86dd3a04c871301
+Author: user <user@gemini.net>
+Date:   Thu Mar 5 10:51:29 2026 +0900
+
+    fix(ProgramGuide): inject verbatim plain text mapping utilizing pre-wrap
+
+diff --git a/src/pages/student/ProgramGuide.tsx b/src/pages/student/ProgramGuide.tsx
+index d30760c..2a4b780 100644
+--- a/src/pages/student/ProgramGuide.tsx
++++ b/src/pages/student/ProgramGuide.tsx
+@@ -1,39 +1,21 @@
+ import { useState } from 'react';
+-import { Info, AlertCircle, FileText, Plane, Box, Briefcase, UserCheck, ArrowRight } from 'lucide-react';
++import { Info, FileText, Plane, Box, Briefcase, UserCheck } from 'lucide-react';
+ 
+ export default function ProgramGuide() {
+     const [openModal, setOpenModal] = useState<string | null>(null);
+ 
+-    const ProcessFlow = ({ steps }: { steps: string[] }) => (
+-        <div className="flex flex-wrap items-center justify-center gap-2 mt-2 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100/50">
+-            {steps.map((step, index) => (
+-                <div key={index} className="flex items-center">
+-                    <span className="font-bold text-sm text-indigo-900 bg-white px-4 py-2 rounded-full shadow-sm border border-indigo-200 break-keep break-words">
+-                        {step}
+-                    </span>
+-                    {index < steps.length - 1 && (
+-                        <ArrowRight className="w-4 h-4 text-indigo-400 mx-2 flex-shrink-0" />
+-                    )}
+-                </div>
+-            ))}
+-        </div>
+-    );
+-
+-    const Modal = ({ category, title, definition, children }: { category: string, title: string, definition: string, children: React.ReactNode }) => {
++    const Modal = ({ category, title, children }: { category: string, title: string, children: React.ReactNode }) => {
+         if (openModal !== category) return null;
+         return (
+             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setOpenModal(null)}>
+                 <div className="bg-white rounded-2xl shadow-xl w-[90vw] md:w-[80vw] max-w-none max-h-[90vh] overflow-y-auto transform transition-all animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+                     <div className="sticky top-0 bg-white border-b border-neutral-200 p-5 sm:p-6 flex justify-between items-start sm:items-center z-10 shadow-sm">
+                         <div className="flex flex-col gap-1.5">
+-                            <h2 className="text-xl sm:text-2xl font-bold text-neutral-900 break-keep break-words">{title} ?곸꽭 ?덈궡</h2>
+-                            <p className="text-sm text-indigo-700 font-medium break-keep break-words bg-indigo-50 inline-block px-3 py-1 rounded-md">
+-                                {definition}
+-                            </p>
++                            <h2 className="text-xl sm:text-2xl font-bold text-neutral-900 break-keep whitespace-pre-wrap">{title}</h2>
+                         </div>
+                         <button onClick={() => setOpenModal(null)} className="text-neutral-400 hover:text-neutral-900 font-bold p-1 text-2xl leading-none">&times;</button>
+                     </div>
+-                    <div className="p-5 sm:p-8 break-keep break-words">
++                    <div className="p-5 sm:p-8 text-neutral-800 text-sm sm:text-base leading-relaxed break-keep whitespace-pre-wrap">
+                         {children}
+                     </div>
+                     <div className="border-t border-neutral-200 p-5 sm:p-6 bg-neutral-50 flex justify-end sticky bottom-0 z-10 shadow-inner">
+@@ -47,85 +29,98 @@ export default function ProgramGuide() {
+     };
+ 
+     return (
+-        <div className="min-h-screen bg-neutral-50 py-8 px-4 sm:px-6 lg:px-8 font-sans break-keep break-words">
++        <div className="min-h-screen bg-neutral-50 py-8 px-4 sm:px-6 lg:px-8 font-sans break-keep whitespace-pre-wrap">
+             <div className="max-w-5xl mx-auto space-y-6">
+ 
+                 {/* Header Section */}
+                 <div className="bg-white p-5 rounded-xl shadow-sm border border-neutral-200 text-center">
+-                    <h1 className="text-xl sm:text-2xl font-bold text-neutral-900 flex justify-center items-center">
+-                        <Info className="w-6 h-6 mr-2 text-indigo-600" />
++                    <h1 className="text-xl sm:text-2xl font-bold text-neutral-900 flex justify-center items-center break-keep whitespace-pre-wrap">
++                        <Info className="w-6 h-6 mr-2 text-indigo-600 flex-shrink-0" />
+                         ?꾨줈洹몃옩 ?덈궡 諛??좎쓽?ы빆
+                     </h1>
+                 </div>
+ 
+                 {/* Section 1: 怨듯넻 二쇱쓽?ы빆 諛?吏?먭툑 ?깃꺽 */}
+-                <div className="bg-gradient-to-br from-red-50 to-orange-50 border border-red-200 rounded-xl p-6 sm:p-8 shadow-sm">
+-                    <div className="flex flex-col items-center mb-5 text-center">
+-                        <AlertCircle className="w-8 h-8 text-red-600 mb-2" />
+-                        <h2 className="text-xl font-bold text-red-900 mb-1">[?꾨룆] 怨듯넻 ?좎쓽?ы빆</h2>
+-                        <p className="text-sm text-red-800 font-medium">
+-                            蹂??깆옣 吏?먭툑? ?⑥닚 ?ν븰湲덉씠 ?꾨땶 ?뺣? ?덉궛 '?ъ뾽鍮??대?濡??꾨옒 ?먯튃??諛섎뱶??以?섑빐???⑸땲??
+-                        </p>
++                <div className="bg-white border text-sm sm:text-base border-neutral-200 rounded-xl p-6 sm:p-8 shadow-sm break-keep whitespace-pre-wrap text-neutral-800 leading-relaxed">
++                    <h2 className="text-xl font-bold text-neutral-900 mb-4 pb-2 border-b border-neutral-100">[[怨듯넻]]</h2>
++                    <div className="mb-6 font-bold text-indigo-900 bg-indigo-50 p-4 rounded-lg">
++                        ((媛쒖슂))?щ윭遺꾩씠 諛쏄쾶 ?섎뒗 ?섏꽦??吏?먭툑?숈? ?⑥닚???ν븰湲덉씠??吏?먭툑???꾨땲???뺣?(以묎린遺) ?덉궛?쇰줈 吏묓뻾?섎뒗 ?섏궗?낅퉬?숈엯?덈떎. ?곕씪??紐⑤뱺 吏異?鍮꾩슜)? ?ъ뾽怨꾪쉷?쒖뿉 紐낆떆??李쎌뾽?꾩씠?쒖쓽 媛쒕컻쨌?ъ뾽??紐⑹쟻??吏곸젒 ?곌? ?섏뼱???섎ŉ, ?섏궗?낅떒?????寃곗젣(援щℓ????숉븯??諛⑹떇?쇰줈留?吏묓뻾?⑸땲??{"\n\n"}
++                        ?묒궛 紐⑹쟻??臾쇳뭹쨌?⑹뿭 援щℓ??遺덇?, ?쒖젣???쒖옉 諛??쒖옣議곗궗 愿???ы빆留?吏묓뻾 媛??{"\n\n"}
++                        <span className="text-red-600">??紐⑤뱺 嫄곕옒???멸툑怨꾩궛?쒖? ?곸닔利앹? ?섍꼍?곴뎅由쎈??숆탳 ?고븰?묐젰?ⓥ?紐낆쓽濡?諛쒗뻾?섏뼱???⑸땲??{"\n"}
++                            ??李멸??먭? 媛쒖씤移대뱶濡?寃곗젣?섍굅?? 媛쒖씤 怨꾩쥖濡??↔툑??寃쎌슦 ?ъ뾽鍮꾨줈 ?몄젙?섏? ?딆뒿?덈떎.</span>
+                     </div>
+ 
+-                    <div className="bg-white rounded-xl border border-red-300 shadow-sm overflow-hidden mt-4">
+-                        <ul className="divide-y divide-red-100 text-red-800 p-1 text-sm">
+-                            <li className="px-5 py-3 flex items-start">
+-                                <span className="mr-3 font-bold text-red-500 text-lg flex-shrink-0">??/span>
+-                                <div>
+-                                    <strong className="block mb-0.5 text-red-900 text-base">?ъ뾽??援щℓ????먯튃, 媛쒖씤 寃곗젣 遺덇?</strong>
+-                                    <span className="font-medium text-neutral-700">紐⑤뱺 吏異쒖? ?ъ뾽??吏곸젒 寃곗젣(援щℓ???媛 ?먯튃?대ŉ ?ы썑 ?섍툒 遺덇?.</span>
+-                                </div>
+-                            </li>
+-                            <li className="px-5 py-3 flex items-start">
+-                                <span className="mr-3 font-bold text-red-500 text-lg flex-shrink-0">??/span>
+-                                <div>
+-                                    <strong className="block mb-0.5 text-red-900 text-base">紐낆쓽 以??/strong>
+-                                    <span className="font-medium text-neutral-700">紐⑤뱺 利앸튃? <strong>'寃쎌긽援?┰??숆탳 ?고븰?묐젰??</strong> 紐낆쓽 諛쒗뻾 ?꾩닔.</span>
+-                                </div>
+-                            </li>
+-                            <li className="px-5 py-3 flex items-start">
+-                                <span className="mr-3 font-bold text-red-500 text-lg flex-shrink-0">??/span>
+-                                <div>
+-                                    <strong className="block mb-0.5 text-red-900 text-base">?묒궛 紐⑹쟻 諛??먯궛??臾쇳뭹 援щℓ 遺덇? / 12/31 吏묓뻾 留덇컧</strong>
+-                                    <span className="font-medium text-neutral-700">醫낅즺 ??寃곌낵蹂닿퀬???쒖텧 ?꾩닔. 紐⑤뱺 ?덉궛 吏묓뻾? 12??31??留덇컧.</span>
+-                                </div>
+-                            </li>
+-                        </ul>
++                    <div className="space-y-6">
++                        <div>
++                            <h3 className="font-bold text-neutral-900 text-lg mb-2">((吏?먭툑 ?ъ슜))</h3>
++                            - ?꾧툑??李멸??먯뿉寃?吏湲됲븯??寃껋씠 ?꾨땶 李멸??먯쓽 ?붿껌??諛쏄퀬 ?ъ뾽?⑥뿉???由?寃곗젣?섎뒗 諛⑹떇{"\n"}
++                            利? 李멸??먭? ?섑븘?뷀븳 ?덈ぉ?숈쓣 ?쒖븞?섎㈃, ?ъ뾽?⑥씠 ?뱀씤 ??吏곸젒 寃곗젣?섎뒗 援ъ“{"\n"}
++                            (?몄긽 嫄곕옒 湲곕낯, ?좉껐???좎?湲됯툒) 遺덇?)
++                        </div>
++
++                        <div>
++                            <h3 className="font-bold text-neutral-900 text-lg mb-2">((湲곕낯 吏꾪뻾 ?덉감))</h3>
++                            <strong className="text-indigo-700 block mb-1">[吏?먭툑 ?ъ슜 ?꾨줈?몄뒪]</strong>
++                            ???ъ쟾 ?좎껌(留ㅼ＜ ?? ?????대? 寃??諛??????뱀씤 ??吏꾪뻾 ????寃곗젣 諛?吏湲?"\n"}
++                            *?ㅼ젣 ?湲?吏湲됯퉴吏 ??1~3二??뚯슂 ?????덉쓬.{"\n"}
++                            ???ъ쟾 ?좎껌: ?좎껌?쒖? 寃ъ쟻?쒕? ?ы븿?섏뿬 ?대떦?먯뿉寃??쒖텧{"\n\n"}
++
++                            <strong className="text-indigo-700 block mb-1">[怨꾪쉷 蹂寃??꾨줈?몄뒪]</strong>
++                            ???ъ쟾 ?좎껌(留ㅼ＜ 紐? ?????대? 寃???????뱀씤 ??寃곗옱 吏꾪뻾 ????寃곗옱 ?꾨즺 諛?諛섏쁺{"\n"}
++                            *?ㅼ젣 蹂寃쎄퉴吏 ??1~2二??뚯슂 ?????덉쓬.{"\n"}
++                            **湲덉븸??蹂寃쎌씠 ?꾨땶 ?댁슜 蹂寃쎌쓽 寃쎌슦, ??湲곗“媛 蹂寃쎈릺吏 ?딅뒗 ??洹몃?濡?吏꾪뻾
++                        </div>
++
++                        <div>
++                            <h3 className="font-bold text-red-700 text-lg mb-2">((?좎쓽?ы빆))</h3>
++                            <ul className="list-disc pl-5 space-y-1.5 marker:text-red-500">
++                                <li>?뚯감???ъ뾽鍮??ъ슜 湲덉븸 理쒕????ш쾶</li>
++                                <li>紐⑤뱺 ?쒕쪟??1:1 移댁뭅?ㅽ넚 ??붾? ?듯빐 ?묒닔</li>
++                                <li>?뚯씪紐?洹쒖튃: ?좎쭨_?紐?鍮꾨ぉ_湲덉븸 ?? 251103_?띻만???щ즺鍮?3,000,000??/li>
++                                <li>?ъ뾽怨꾪쉷?쒖긽, ?먭툑 ?쒖슜 怨꾪쉷?쒖뿉 湲곗옱?섏? ?딆? 嫄댁? ?ъ쟾 ?좎껌??遺덇??섎ŉ, ?ъ쟾 ?좎껌 ?묒닔?섏? ?딆? 寃곗젣 嫄댁? 吏묓뻾 遺덇?</li>
++                                <li>? ?ъ뾽(?⑦궎吏 ??怨?以묐났吏湲?遺덇?</li>
++                                <li>?먮낯?쒕쪟 遺꾩떎 ??吏湲됱씠 ?섏? ?딄굅???ъ옉?깅릺?댁빞 ?섎뒗 踰덇굅濡쒖???諛쒖깮 ?????덉쑝誘濡??먮낯?쒕쪟 愿由?泥좎?.</li>
++                                <li>?ъ뾽 醫낅즺 ?쒖젏??寃곌낵蹂닿퀬?쒖? ?ъ뾽?먮벑濡앹쬆 異쒖썝 紐⑤몢 ?꾩닔</li>
++                                <li className="text-red-600 font-bold">湲곌컙 ??誘몄젣異??? 吏?먭툑 ?꾩븸 ?섏닔 媛??/li>
++                                <li className="text-red-600 font-bold">湲곗옄??援щℓ 遺덇?(PC, ?명듃遺? ?뚮툝由????먯궛??臾쇳뭹)</li>
++                                <li>(理쒖쥌)蹂닿퀬?쒖뿉??"?대뼡 鍮꾨ぉ?쇰줈 臾댁뾿???쒖옉쨌異쒖썝쨌?몄쬆?덈뒗吏"瑜?援ъ껜?곸쑝濡?湲곗옱?댁빞 ??/li>
++                                <li>?ъ뾽?⑥? 利앸튃 ?꾨씫 ???ъ뾽鍮?吏湲??먮뒗 ?뺤궛??蹂대쪟?????덉쓬</li>
++                                <li className="font-bold text-red-600">媛쒖씤 紐낆쓽 寃곗젣 遺덇?, 紐⑤뱺 嫄곕옒???ъ뾽?⑥쓣 ?듯빐 吏꾪뻾</li>
++                                <li>吏異???諛섎뱶???덈ぉ?붿껌???쒖텧 ???뱀씤 ??援щℓ ?덉감 以??/li>
++                                <li className="font-bold text-red-600">利앸튃?쒕쪟(?멸툑怨꾩궛?? 怨꾩빟?? ?⑺뭹?뺤씤??????諛섎뱶??寃쎌긽援?┰? ?고븰?묐젰??紐낆쓽濡?諛쒗뻾</li>
++                                <li>遺덈챸?뺥븳 吏異쒖? 異뷀썑 ?섏닔 ?먮뒗 遺?곸젙 ?먯젙</li>
++                            </ul>
++                        </div>
+                     </div>
+                 </div>
+ 
+                 {/* Section 2: 鍮꾨ぉ蹂???踰꾪듉 Grid (4 categories, 2x2 layout) */}
+                 <div>
+-                    <h3 className="text-lg font-bold text-neutral-900 mb-4 flex items-center justify-center">
+-                        <FileText className="w-5 h-5 mr-2 text-indigo-600" />
++                    <h3 className="text-lg font-bold text-neutral-900 mb-4 flex items-center justify-center break-keep whitespace-pre-wrap">
++                        <FileText className="w-5 h-5 mr-2 text-indigo-600 flex-shrink-0" />
+                         吏??鍮꾨ぉ蹂??곸꽭 ?덈궡 (?대┃ ???앹뾽)
+                     </h3>
+ 
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+ 
+                         <button onClick={() => setOpenModal('?щ퉬')} className="group flex flex-col items-center justify-center p-6 bg-white border border-[#0288D1]/30 rounded-xl shadow-sm hover:shadow-md hover:border-[#0288D1] hover:bg-[#E1F5FE]/30 transition-all duration-200">
+-                            <Plane className="w-8 h-8 text-[#0288D1] mb-3 group-hover:scale-110 transition-transform" />
+-                            <span className="text-lg font-bold text-[#0277BD] mb-1">?щ퉬</span>
+-                            <span className="text-xs text-neutral-500 font-medium text-center">利앸튃 湲곕컲 ?ㅻ퉬 吏湲?br />(異쒖옣 ?쒕쪟 5醫?</span>
++                            <Plane className="w-8 h-8 text-[#0288D1] mb-3 group-hover:scale-110 transition-transform flex-shrink-0" />
++                            <span className="text-lg font-bold text-[#0277BD] mb-1 break-keep">?щ퉬</span>
+                         </button>
+ 
+                         <button onClick={() => setOpenModal('?щ즺鍮?)} className="group flex flex-col items-center justify-center p-6 bg-white border border-[#2E7D32]/30 rounded-xl shadow-sm hover:shadow-md hover:border-[#2E7D32] hover:bg-[#E8F5E9]/30 transition-all duration-200">
+-                            <Box className="w-8 h-8 text-[#2E7D32] mb-3 group-hover:scale-110 transition-transform" />
+-                            <span className="text-lg font-bold text-[#1B5E20] mb-1">?щ즺鍮?/span>
+-                            <span className="text-xs text-neutral-500 font-medium text-center">?쒖젣???쒖옉 ?뚮え??br />(?꾩닔 ?쒕쪟 10醫?</span>
++                            <Box className="w-8 h-8 text-[#2E7D32] mb-3 group-hover:scale-110 transition-transform flex-shrink-0" />
++                            <span className="text-lg font-bold text-[#1B5E20] mb-1 break-keep">?щ즺鍮?/span>
+                         </button>
+ 
+                         <button onClick={() => setOpenModal('?몄＜?⑹뿭鍮?)} className="group flex flex-col items-center justify-center p-6 bg-white border border-[#7B1FA2]/30 rounded-xl shadow-sm hover:shadow-md hover:border-[#7B1FA2] hover:bg-[#F3E5F5]/30 transition-all duration-200">
+-                            <Briefcase className="w-8 h-8 text-[#7B1FA2] mb-3 group-hover:scale-110 transition-transform" />
+-                            <span className="text-lg font-bold text-[#4A148C] mb-1">?몄＜?⑹뿭鍮?/span>
+-                            <span className="text-xs text-neutral-500 font-medium text-center">?쒖젣??怨좊룄???몃? 怨꾩빟<br />(?꾩닔 ?쒕쪟 18醫?</span>
++                            <Briefcase className="w-8 h-8 text-[#7B1FA2] mb-3 group-hover:scale-110 transition-transform flex-shrink-0" />
++                            <span className="text-lg font-bold text-[#4A148C] mb-1 break-keep">?몄＜?⑹뿭鍮?/span>
+                         </button>
+ 
+                         <button onClick={() => setOpenModal('吏湲됱닔?섎즺')} className="group flex flex-col items-center justify-center p-6 bg-white border border-[#F57F17]/30 rounded-xl shadow-sm hover:shadow-md hover:border-[#F57F17] hover:bg-[#FFF8E1]/30 transition-all duration-200">
+-                            <UserCheck className="w-8 h-8 text-[#F57F17] mb-3 group-hover:scale-110 transition-transform" />
+-                            <span className="text-lg font-bold text-[#E65100] mb-1">吏湲됱닔?섎즺 (硫섑넗留?</span>
+-                            <span className="text-xs text-neutral-500 font-medium text-center">硫섑넗 ?먭꺽 ?붽굔 諛?br />?꾩닔 ?쒕쪟 4醫?/span>
++                            <UserCheck className="w-8 h-8 text-[#F57F17] mb-3 group-hover:scale-110 transition-transform flex-shrink-0" />
++                            <span className="text-lg font-bold text-[#E65100] mb-1 break-keep">吏湲됱닔?섎즺(硫섑넗留?</span>
+                         </button>
+ 
+                     </div>
+@@ -134,246 +129,118 @@ export default function ProgramGuide() {
+                 {/* Modals */}
+                 <Modal
+                     category="?щ퉬"
+-                    title="[?щ퉬]"
+-                    definition="?뚯옱吏瑜?踰쀬뼱??? 吏??異쒖옣 ?깆쓽 ?ъ쑀濡?吏묓뻾?섎뒗 鍮꾩슜."
++                    title="[[?щ퉬]]"
+                 >
+-                    <div className="space-y-6">
+-                        <div className="bg-[#E1F5FE]/60 p-5 rounded-xl border border-[#81D4FA] flex flex-col gap-3 shadow-sm">
+-                            <div className="flex items-center">
+-                                <Info className="w-5 h-5 text-[#0288D1] mr-2 flex-shrink-0" />
+-                                <strong className="text-base text-[#01579B]">吏묓뻾 ?먯튃</strong>
+-                            </div>
+-                            <ul className="list-disc pl-8 text-sm text-[#01579B] font-medium space-y-1">
+-                                <li>援먰넻?곸닔利앹? ?ъ뾽???뱀씤 ?댄썑 <strong>媛쒖씤移대뱶濡?寃곗젣</strong> (異쒖옣 ?좎껌?쇨낵 ?묒듅???숈씪 ?꾩닔).</li>
+-                                <li><strong>吏꾩＜-異쒖옣吏 ?뺣났 ?곸닔利??ㅼ젣 湲덉븸 ?쒓린) ?쒖텧 諛??以묎탳???댁슜 ?꾩닔.</strong> (媛쒖씤李⑤웾 ?대룞 ???듯뻾猷?二쇱쑀鍮?吏湲?遺덇?)</li>
+-                                <li><strong>?⑥닚 誘명똿 紐⑹쟻???щ퉬??吏湲?遺덇?.</strong></li>
+-                            </ul>
+-
+-                            <hr className="border-[#B3E5FC] my-2" />
+-
+-                            <div className="flex items-center">
+-                                <Info className="w-5 h-5 text-[#0288D1] mr-2 flex-shrink-0" />
+-                                <strong className="text-base text-[#01579B]">吏湲?湲곗?</strong>
+-                            </div>
+-                            <ul className="list-disc pl-8 text-sm text-[#01579B] font-medium space-y-1">
+-                                <li><strong>踰꾩뒪</strong>: ?곕벑?붽툑 ?댄븯 ?ㅻ퉬 (?꾨━誘몄뾼 ?댁슜 ?쒖뿉???곕벑媛濡?吏湲?.</li>
+-                                <li><strong>泥좊룄</strong>: KTX/SRT/?덈쭏?꾪샇 ?쇰컲???댄븯 (?뱀떎/鍮꾩쫰?덉뒪??遺덇?).</li>
+-                            </ul>
++                    <div className="space-y-5">
++                        <div className="bg-indigo-50 p-4 rounded-lg font-medium text-indigo-900">
++                            <strong>((?뺤쓽))</strong>?щ퉬???뚯옱吏瑜?踰쀬뼱??? 吏??異쒖옣 ?깆쓽 ?ъ쑀濡?吏묓뻾?섎뒗 鍮꾩슜??留먰븳??
+                         </div>
+ 
+                         <div>
+-                            <h3 className="text-lg font-bold text-[#0288D1] mb-3 flex items-center">
+-                                <span className="mr-2 text-base">?뱥</span> ?쒖텧 ?쒕쪟 4醫?-                            </h3>
+-                            <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden shadow-sm">
+-                                <table className="min-w-full text-sm border-collapse">
+-                                    <thead className="bg-[#0288D1] text-white">
+-                                        <tr>
+-                                            <th scope="col" className="px-4 py-3 text-center font-semibold w-16 border-r border-[#0277BD]">?쒕쾲</th>
+-                                            <th scope="col" className="px-4 py-3 text-left font-semibold">?쒕쪟紐?/th>
+-                                        </tr>
+-                                    </thead>
+-                                    <tbody className="text-neutral-800">
+-                                        <tr className="even:bg-neutral-50/70 hover:bg-[#E1F5FE]/30 transition-colors border-b border-neutral-100 last:border-0">
+-                                            <td className="px-4 py-3 text-center font-medium text-neutral-500 border-r border-neutral-200">1</td>
+-                                            <td className="px-4 py-3 font-medium text-neutral-900">??異쒖옣 ?몃? 怨꾪쉷???ъ쟾)</td>
+-                                        </tr>
+-                                        <tr className="even:bg-neutral-50/70 hover:bg-[#E1F5FE]/30 transition-colors border-b border-neutral-100 last:border-0">
+-                                            <td className="px-4 py-3 text-center font-medium text-neutral-500 border-r border-neutral-200">2</td>
+-                                            <td className="px-4 py-3 font-medium text-neutral-900">??異쒖옣蹂닿퀬???ы썑)</td>
+-                                        </tr>
+-                                        <tr className="even:bg-neutral-50/70 hover:bg-[#E1F5FE]/30 transition-colors border-b border-neutral-100 last:border-0">
+-                                            <td className="px-4 py-3 text-center font-medium text-neutral-500 border-r border-neutral-200">3</td>
+-                                            <td className="px-4 py-3 font-medium text-neutral-900">???곸닔利?諛?利앸튃 ?ъ쭊 泥⑤?泥?/td>
+-                                        </tr>
+-                                        <tr className="even:bg-neutral-50/70 hover:bg-[#E1F5FE]/30 transition-colors border-b border-neutral-100 last:border-0">
+-                                            <td className="px-4 py-3 text-center font-medium text-neutral-500 border-r border-neutral-200">4</td>
+-                                            <td className="px-4 py-3 font-medium text-neutral-900">???듭옣 諛??좊텇利??щ낯</td>
+-                                        </tr>
+-                                    </tbody>
+-                                </table>
+-                            </div>
++                            <strong className="text-lg text-neutral-900 block mb-2">((?좎쓽?ы빆))</strong>
++                            援먰넻?곸닔利앹쓽 寃쎌슦 ?ъ뾽?⑥쓽 異쒖옣 ?뱀씤 ?댄썑 ? 援ъ꽦?먮퀎 媛쒖씤移대뱶濡?寃곗젣?섏뿬???쒕떎.(異쒖옣?좎껌?쇱옄? ?묒듅?쇱옄???숈씪?댁빞 ?쒕떎.){"\n\n"}
++                            ?щ퉬??異쒖옣 ?? ? 援ъ꽦?먮퀎 媛곴컖 媛쒖씤怨꾩쥖濡??ㅻ퉬 吏湲됰맂??{"\n\n"}
++                            援먰넻?곸닔利앹? 吏꾩＜-異쒖옣吏/異쒖옣吏-吏꾩＜(媛?1????媛 ?쒓린???ㅼ젣 ?곸닔利앹쓣 ?쒖텧?섏뿬???쒕떎. ?? ?곸닔利???異쒖옣吏, 異쒖옣?쇱옄, 湲덉븸??諛섎뱶???ы븿?섏뼱?덈뒗 ?먮즺瑜??쒖텧?댁빞 ?쒕떎. 異쒖옣吏 ?대룞???꾪븳 援먰넻?몄? 諛섎뱶???以묎탳?듭쓣 ?댁슜?댁빞 ?쒕떎.{"\n\n"}
++                            <strong className="block mb-1">李멸퀬 ?ы빆</strong>
++                            踰꾩뒪?댁엫? ?곕벑?붽툑 ?댄븯???ㅻ퉬濡?吏湲됰릺硫? ?꾨━誘몄뾼 踰꾩뒪???ъ빞 踰꾩뒪瑜??댁슜?섎뜑?쇰룄 ?곕벑?붽툑?쇰줈 吏湲됰맂?? (?쇰컲踰꾩뒪 ?묒듅 寃쎌슦 ?대떦湲덉븸?쇰줈 吏湲됰맖){"\n"}
++                            泥좊룄?댁엫? KTX ?쇰컲???댄븯 ?댁슜 媛??KTX ?뱀떎? 遺덇?, SRT 諛??덈쭏?꾪샇 ?깆? 媛???섎ŉ, ?ㅻ퉬瑜?吏湲됲븳??{"\n\n"}
++                            異쒖옣 利앸튃?ъ쭊? 異쒖옣吏?먯꽌 ?쒕룞?섎뒗 ?ъ쭊??珥ъ쁺?섏뿬 利앸튃?쒖떇??留욊쾶 ?묒꽦?섏뿬 ?쒖텧?댁빞 ?쒕떎.{"\n\n"}
++                            <span className="text-red-600 font-bold">?⑥닚 誘명똿???꾪븳 ?ы뻾???щ퉬??吏湲?遺덇?.</span>
++                        </div>
++
++                        <div className="bg-neutral-100 p-5 rounded-lg border border-neutral-200">
++                            <strong className="text-lg text-neutral-900 block mb-3">((吏異??꾩슂 ?쒕쪟 紐⑸줉))</strong>
++                            <ul className="list-disc pl-5 space-y-2">
++                                <li>異쒖옣 ?몃? 怨꾪쉷???ъ쟾 ?쒖텧 諛??뱀씤 ?꾩슂)</li>
++                                <li>異쒖옣 蹂닿퀬???ы썑 ?쒖텧)</li>
++                                <li>?곸닔利?諛??듭옣/?좊텇利??щ낯</li>
++                            </ul>
+                         </div>
+                     </div>
+                 </Modal>
+ 
+                 <Modal
+                     category="?щ즺鍮?
+-                    title="[?щ즺鍮?"
+-                    definition="?ъ뾽怨꾪쉷???곸쓽 ?ъ뾽?붾? ?꾪빐 ?뚮え?섎뒗 ?щ즺 ?먮뒗 ?먮즺 ?깆쓣 援щℓ?섎뒗 鍮꾩슜."
++                    title="[[?щ즺鍮?]"
+                 >
+-                    <div className="space-y-6">
+-                        <div className="bg-[#E8F5E9]/60 p-5 rounded-xl border border-[#A5D6A7] flex flex-col gap-3 shadow-sm">
+-                            <div className="flex items-center">
+-                                <Info className="w-5 h-5 text-[#2E7D32] mr-2 flex-shrink-0" />
+-                                <strong className="text-base text-[#1B5E20]">吏묓뻾 ?먯튃</strong>
+-                            </div>
+-                            <ProcessFlow steps={['留ㅼ＜ ?붿슂???좎껌', '?????ъ뾽???쇨큵 援щℓ', '紐?湲?寃??諛??섎졊']} />
+-                            <ul className="list-disc pl-8 text-sm text-[#1B5E20] font-medium space-y-1 mt-3">
+-                                <li><strong>?묒궛 紐⑹쟻 臾쇳뭹 援щℓ 遺덇?</strong>, ?쒖젣???쒖옉 愿???뚮え?덈쭔 媛??</li>
+-                                <li className="text-red-600"><strong>?먯궛??臾쇳뭹(PC, ?쒕툝由? 紐⑤땲???? ?덈? 援щℓ 遺덇?.</strong></li>
+-                            </ul>
++                    <div className="space-y-5">
++                        <div className="bg-green-50 p-4 rounded-lg font-medium text-green-900 border border-green-100">
++                            <strong>((?뺤쓽))</strong>?щ즺鍮꾨뒗 ?ъ뾽怨꾪쉷???곸쓽 ?ъ뾽?붾? ?꾪빐 ?뚮え?섎뒗 ?щ즺 ?먮뒗 ?먮즺 ?깆쓣 援щℓ?섎뒗 鍮꾩슜??留먰븳??
+                         </div>
+ 
+                         <div>
+-                            <h3 className="text-lg font-bold text-[#2E7D32] mb-3 flex items-center">
+-                                <span className="mr-2 text-base">?뱥</span> ?쒖텧 ?쒕쪟 10醫?-                            </h3>
+-                            <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden shadow-sm">
+-                                <table className="min-w-full text-sm border-collapse">
+-                                    <thead className="bg-[#2E7D32] text-white">
+-                                        <tr>
+-                                            <th scope="col" className="px-4 py-3 text-center font-semibold w-16 border-r border-[#1B5E20]">?쒕쾲</th>
+-                                            <th scope="col" className="px-4 py-3 text-left font-semibold">?쒕쪟紐?/th>
+-                                        </tr>
+-                                    </thead>
+-                                    <tbody className="text-neutral-800">
+-                                        {[
+-                                            "??援щℓ怨꾪쉷??,
+-                                            "??臾쇳뭹援ъ엯?붿껌??,
+-                                            "??寃ъ쟻??,
+-                                            "??鍮꾧탳寃ъ쟻??2怨??댁긽)",
+-                                            "???곸닔利?,
+-                                            "??寃?섏궗吏?,
+-                                            "???ъ뾽?먮벑濡앹쬆",
+-                                            "???듭옣?щ낯",
+-                                            "??嫄곕옒紐낆꽭??,
+-                                            "??泥?뎄??
+-                                        ].map((doc, idx) => (
+-                                            <tr key={idx} className="even:bg-neutral-50/70 hover:bg-[#E8F5E9]/30 transition-colors border-b border-neutral-100 last:border-0">
+-                                                <td className="px-4 py-3 text-center font-medium text-neutral-500 border-r border-neutral-200">{idx + 1}</td>
+-                                                <td className="px-4 py-3 font-medium text-neutral-900">{doc}</td>
+-                                            </tr>
+-                                        ))}
+-                                    </tbody>
+-                                </table>
+-                            </div>
++                            <strong className="text-lg text-neutral-900 block mb-2">((?좎쓽?ы빆))</strong>
++                            <span className="text-red-600 font-bold">痍⑤뱷???ы솕(湲곌퀎쨌?μ튂) 諛?MVP瑜??쒖옉?⑥뿉 ?뚮え?섏? ?딅뒗 ?덈ぉ? 援щℓ 遺덇?.{"\n"}
++                                ?댁쇅 吏곴뎄 ?곹뭹 諛?援щ룆 ?쒕퉬???대룄鍮??? 援щℓ 遺덇?</span>{"\n\n"}
++                            ?щ즺鍮꾨뒗 ?ъ뾽?⑥뿉??留ㅼ＜ ?붿슂???쇨큵 ?좎껌 ?묒닔 ????~ ???쇨큵 援щℓ ?쒕떎.{"\n"}
++                            ?좎껌 媛??湲곌컙? 留ㅼ＜ ?붿슂?쇨퉴吏濡? ?ъ뾽?⑥뿉 援щℓ?좎껌 怨꾪쉷?? 臾쇳뭹 援ъ엯 ?붿껌?? 寃ъ쟻?쒕? ?쒖텧?댁빞 ?쒕떎.{"\n"}
++                            援щℓ?좎껌 怨꾪쉷??諛?臾쇳뭹 援ъ엯 ?붿껌?쒖? 寃ъ쟻?쒖쓽 ?댁슜???쇱튂?댁빞 ?쒕떎.{"\n"}
++                            ?щ즺瑜??섎졊?섍퀬 臾쇳뭹蹂?寃???ъ쭊??珥ъ쁺 ?? 愿??利앸튃 ?쒖떇??留욎텛???쒖텧?쒕떎.{"\n\n"}
++                            援щℓ ?덈ぉ? 援щℓ ?섎웾??遺꾨챸?섍쾶 ?쒕윭?섍쾶 寃??珥ъ쁺?섏뿬???쒕떎.
++                        </div>
++
++                        <div className="bg-neutral-100 p-5 rounded-lg border border-neutral-200">
++                            <strong className="text-lg text-neutral-900 block mb-4">((吏異??꾩슂 ?쒕쪟 紐⑸줉 - ?⑤씪?멸낵 ?ㅽ봽?쇱씤 援щ텇?섏뿬 援ы쁽))</strong>
++
++                            <strong className="block text-indigo-700 mb-2">[?⑤씪??寃곗젣 ??</strong>
++                            1. 援щℓ ?좎껌 怨꾪쉷???ъ쟾 寃???꾩닔), 2. 臾쇳뭹 援ъ엯 ?붿껌???⑤씪??寃곗젣 ???대떦), 4. 臾쇳뭹 利앸튃?ъ쭊.{"\n\n"}
++
++                            <strong className="block text-indigo-700 mb-2">[?ㅽ봽?쇱씤 寃곗젣 ??</strong>
++                            1. 援щℓ ?좎껌 怨꾪쉷???ъ쟾 寃???꾩닔), 3. 嫄곕옒紐낆꽭???ㅽ봽?쇱씤 寃곗젣 ???대떦), 4. 臾쇳뭹 利앸튃?ъ쭊, 5. ?ъ뾽?먮벑濡앹쬆(?ㅽ봽?쇱씤 寃곗젣 ???대떦), 6. ?밸굺?ы빆(?ㅽ봽?쇱씤 寃곗젣 ???대떦), 7. 泥?졃怨꾩빟 ?댄뻾?쒖빟???ㅽ봽?쇱씤 寃곗젣 ???대떦), 8. ?섏쓽怨꾩빟 泥닿껐 ?쒗븳 ?щ? ?뺤씤???ㅽ봽?쇱씤 寃곗젣 ???대떦), 9. ?듭옣?щ낯(?ㅽ봽?쇱씤 寃곗젣 ???대떦).
+                         </div>
+                     </div>
+                 </Modal>
+ 
+                 <Modal
+                     category="?몄＜?⑹뿭鍮?
+-                    title="[?몄＜?⑹뿭鍮?"
+-                    definition="李쎌뾽?꾩씠??怨좊룄??諛??ъ뾽怨꾪쉷 ?섑뻾???꾪빐 ?쇰? 怨듭젙???몃? ?낆껜???섎ː?섏뿬 ?쒖옉?섎뒗 鍮꾩슜."
++                    title="[[?몄＜?⑹뿭鍮?]"
+                 >
+-                    <div className="space-y-6">
+-                        <div className="bg-purple-50 p-5 rounded-xl border border-purple-200 flex flex-col gap-3 shadow-sm">
+-                            <div className="flex items-center">
+-                                <Briefcase className="w-5 h-5 text-purple-700 mr-2 flex-shrink-0" />
+-                                <strong className="text-base text-purple-900">?낆껜 ?먭꺽 ?붽굔</strong>
+-                            </div>
+-                            <ul className="list-disc pl-8 text-sm text-purple-900 font-medium space-y-1">
+-                                <li><strong>1???댁긽</strong> ?대떦 遺꾩빞 醫낆궗 寃쎈젰 諛??좎궗 ?꾩씠???쒖옉 寃쏀뿕 蹂댁쑀 ?낆껜. (利앸튃 ?꾩슂)</li>
+-                                <li className="text-red-600"><strong>?꾨━?쒖꽌 以묎컻 ?쒕퉬???щそ, ?꾩떆耳??? ?댁슜 遺덇?.</strong></li>
+-                                <li>?쒓툑???쒖옉? 媛?ν븯???묒궛 紐⑹쟻 湲덊삎 ?쒖옉? 遺덇?.</li>
+-                            </ul>
++                    <div className="space-y-5">
++                        <div className="bg-purple-50 p-4 rounded-lg font-medium text-purple-900 border border-purple-100">
++                            <strong>((?뺤쓽))</strong>?몄＜?⑹뿭鍮꾨뒗 ?ъ뾽怨꾪쉷???곸쓽 李쎌뾽?꾩씠?쒖쓣 怨좊룄?뷀븯嫄곕굹 ?ъ뾽怨꾪쉷???섑뻾?섍린 ?꾪븳 紐⑹쟻?쇰줈 ?쇰? 怨듭젙???몃? ?낆껜???섎ː?섏뿬 ?쒖옉?섍퀬, ?댁뿉 ????媛瑜?吏湲됲븯??鍮꾩슜??留먰븳??
+                         </div>
+ 
+                         <div>
+-                            <h3 className="text-lg font-bold text-[#7B1FA2] mb-3 flex items-center">
+-                                <span className="mr-2 text-base">?뱥</span> ?쒖텧 ?쒕쪟
+-                            </h3>
+-                            <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden shadow-sm">
+-                                <table className="min-w-full text-sm border-collapse">
+-                                    <thead className="bg-[#7B1FA2] text-white">
+-                                        <tr>
+-                                            <th scope="col" className="px-4 py-3 text-center font-semibold w-24 border-r border-[#6A1B9A]">援щ텇</th>
+-                                            <th scope="col" className="px-4 py-3 text-left font-semibold">?곸꽭 ?쒕쪟紐?/th>
+-                                        </tr>
+-                                    </thead>
+-                                    <tbody className="text-neutral-800">
+-
+-                                        <tr className="even:bg-neutral-50/70 hover:bg-[#F3E5F5]/30 border-b border-neutral-200">
+-                                            <td className="px-4 py-4 text-center font-bold text-[#4A148C] bg-neutral-50/50 border-r border-neutral-200">
+-                                                怨꾩빟 ???쒕쪟
+-                                            </td>
+-                                            <td className="px-4 py-4 font-medium leading-relaxed">
+-                                                ?쒖?怨꾩빟??<strong>媛꾩씤 ?꾩닔</strong>), 怨쇱뾽吏?쒖꽌, 寃ъ쟻?? 怨꾩빟蹂댁쬆湲?硫댁젣媛곸꽌, ?섏쓽怨꾩빟 泥닿껐 ?쒗븳 ?щ? ?뺤씤?? 泥?졃怨꾩빟 ?댄뻾?쒖빟?? ?ъ뾽?먮벑濡앹쬆 ?щ낯, ?듭옣?щ낯, ?멸컧利앸챸?? ?⑹꽭利앸챸??援?꽭/吏諛⑹꽭/4?蹂댄뿕)
+-                                            </td>
+-                                        </tr>
+-
+-                                        <tr className="even:bg-neutral-50/70 hover:bg-[#F3E5F5]/30">
+-                                            <td className="px-4 py-4 text-center font-bold text-[#4A148C] bg-neutral-50/50 border-r border-neutral-200">
+-                                                寃?????쒕쪟
+-                                            </td>
+-                                            <td className="px-4 py-4 font-medium leading-relaxed">
+-                                                ?꾩옄?멸툑怨꾩궛?? 嫄곕옒紐낆꽭?? 李⑹닔怨? ?꾨즺怨? ?⑹뿭寃곌낵蹂닿퀬?? 利앸튃 ?ъ쭊 諛?寃곌낵臾??먮즺
+-                                            </td>
+-                                        </tr>
+-                                    </tbody>
+-                                </table>
+-                            </div>
++                            <strong className="text-lg text-neutral-900 block mb-2">((?좎쓽?ы빆))</strong>
++                            ?몃? ?꾨Ц?낆껜??1???댁긽???대떦 遺꾩빞 醫낆궗寃쎈젰 諛??몄＜?⑹뿭???李쎌뾽?꾩씠?쒓낵 ?좎궗???꾩씠?쒖쓽 ?쒖옉 寃쏀뿕 蹂댁쑀 ?꾩슂{"\n\n"}
++                            ?몄＜?낆껜???ъ뾽?먮벑濡앹쬆 ???곸젙 ?낆쥌(?낇깭쨌醫낅ぉ) ?щ?瑜??꾪엳 ?뺤씤{"\n\n"}
++                            <span className="text-red-600 font-bold">?꾨━?쒖꽌 以묎컻 ?쒕퉬???щそ, ?꾩떆耳???瑜??듯븳 吏?먭툑 吏묓뻾 遺덇?</span>{"\n\n"}
++                            ?묒궛紐⑹쟻??湲덊삎?쒖옉鍮꾨뒗 吏묓뻾 遺덇? (?쒓툑?뺤젣??吏묓뻾 媛??{"\n\n"}
++                            ?⑹뿭 怨꾩빟 泥섎━ ?덉감???뚯슂?섎뒗 ?쒓컙(1~2二???媛먯븞?섏뿬 怨꾪쉷蹂대떎 ?쇱컢 ?ъ쟾 ?좎껌 ?꾩슂
++                        </div>
++
++                        <div className="bg-neutral-100 p-5 rounded-lg border border-neutral-200">
++                            <strong className="text-lg text-neutral-900 block mb-4">((吏異??꾩슂 ?쒕쪟 紐⑸줉 - 怨꾩빟 ?쒖? ?湲?吏湲??쒕? ?쒓컖?곸쑝濡?援щ텇?섏뿬 援ы쁽))</strong>
++
++                            <strong className="block text-purple-700 mb-2">(怨꾩빟 ??</strong>
++                            1. ?쒖? 怨꾩빟?? 2. 怨쇱뾽吏?쒖꽌, 3. 寃ъ쟻?? 4. 鍮꾧탳寃ъ쟻?? 5. 怨꾩빟蹂댁쬆湲?硫댁젣媛곸꽌, 6. ?섏쓽怨꾩빟 泥닿껐 ?쒗븳 ?щ? ?뺤씤?? 7. 泥?졃怨꾩빟 ?댄뻾 ?쒖빟?? 8. ?ъ뾽?먮벑濡앹쬆, 9. ?듭옣?щ낯, 10. ?멸컧利앸챸?? 11. ?⑹꽭利앸챸?? 12. 吏諛⑹꽭 ?⑹꽭 利앸챸?? 13. 4?蹂댄뿕 ?꾨궔 利앸챸??{"\n\n"}
++
++                            <strong className="block text-purple-700 mb-2">(?湲?吏湲???</strong>
++                            1. 嫄곕옒紐낆꽭?? 2. 李⑹닔怨? 3. ?꾨즺怨? 4. ?⑹뿭 寃곌낵蹂닿퀬??
+                         </div>
+                     </div>
+                 </Modal>
+ 
+                 <Modal
+                     category="吏湲됱닔?섎즺"
+-                    title="[吏湲됱닔?섎즺 (硫섑넗留?]"
+-                    definition="?ъ뾽紐⑤뜽 媛쒕컻, ?쒗뭹 媛쒖꽑 ?깆쓣 ?꾪븳 硫섑넗留?吏꾪뻾 ??吏湲됲븯??鍮꾩슜."
++                    title="[[吏湲됱닔?섎즺(硫섑넗留?]]"
+                 >
+-                    <div className="space-y-6">
+-                        <div>
+-                            <h3 className="text-lg font-bold text-[#E65100] mb-3 flex items-center">
+-                                <span className="mr-2 text-base">?뫅?랅윆?/span> 硫섑넗 ?먭꺽
+-                            </h3>
+-                            <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden shadow-sm">
+-                                <table className="min-w-full text-sm">
+-                                    <thead className="bg-[#E65100] text-white">
+-                                        <tr>
+-                                            <th scope="col" className="px-4 py-3 text-center font-semibold border-r border-[#EF6C00] w-16">援щ텇</th>
+-                                            <th scope="col" className="px-4 py-3 text-left font-semibold">?먭꺽 湲곗? 紐낆꽭</th>
+-                                        </tr>
+-                                    </thead>
+-                                    <tbody className="text-neutral-800">
+-                                        {[
+-                                            "諛뺤궗?숈쐞 ?뚯???,
+-                                            "?앹궗?숈쐞 ?뚯? ??5??寃쎈젰??,
+-                                            "?숈궗?숈쐞 ?뚯? ??7??寃쎈젰??,
+-                                            "??숆탳??,
+-                                            "援??湲곗닠?먭꺽踰뺤긽 湲곗닠??,
+-                                            "?꾨Ц吏?蹂由ъ궗, ?뚭퀎?? 蹂?몄궗 ??"
+-                                        ].map((item, idx) => (
+-                                            <tr key={idx} className="even:bg-neutral-50/70 hover:bg-[#FFF8E1]/40 transition-colors border-b border-neutral-100 last:border-0">
+-                                                <td className="px-4 py-3 text-center font-bold text-neutral-500 border-r border-neutral-200">{idx + 1}</td>
+-                                                <td className="px-4 py-3 font-medium text-neutral-900">{item}</td>
+-                                            </tr>
+-                                        ))}
+-                                    </tbody>
+-                                </table>
+-                            </div>
++                    <div className="space-y-5">
++                        <div className="bg-orange-50 p-4 rounded-lg font-medium text-orange-900 border border-orange-100">
++                            <strong>((?뺤쓽))</strong>?꾨Ц媛?쒖슜鍮?硫섑넗留????ъ뾽紐⑤뜽 媛쒕컻, ?쒗뭹 媛쒖꽑 ?깆쓣 ?꾪븳 硫섑넗留?吏꾪뻾 ??吏湲됲븯??鍮꾩슜??留먰븳??
+                         </div>
+ 
+                         <div>
+-                            <h3 className="text-lg font-bold text-[#E65100] mb-3 flex items-center">
+-                                <span className="mr-2 text-base">?뱥</span> ?쒖텧 ?쒕쪟
+-                            </h3>
+-                            <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden shadow-sm">
+-                                <table className="min-w-full text-sm border-collapse">
+-                                    <thead className="bg-[#E65100] text-white">
+-                                        <tr>
+-                                            <th scope="col" className="px-4 py-3 text-center font-semibold w-16 border-r border-[#EF6C00]">?쒕쾲</th>
+-                                            <th scope="col" className="px-4 py-3 text-left font-semibold">?쒕쪟紐?/th>
+-                                        </tr>
+-                                    </thead>
+-                                    <tbody className="text-neutral-800">
+-                                        {[
+-                                            "???꾨Ц媛 ?꾩큺?숈쓽??,
+-                                            "??硫섑넗留곷낫怨좎꽌(?꾩옣?ъ쭊 ?ы븿)",
+-                                            "??硫섑넗 ?대젰??,
+-                                            "???좊텇利?諛??듭옣 ?щ낯"
+-                                        ].map((doc, idx) => (
+-                                            <tr key={idx} className="even:bg-neutral-50/70 hover:bg-[#FFF8E1]/30 transition-colors border-b border-neutral-100 last:border-0">
+-                                                <td className="px-4 py-3 text-center font-medium text-neutral-500 border-r border-neutral-200">{idx + 1}</td>
+-                                                <td className="px-4 py-3 font-medium text-neutral-900">{doc}</td>
+-                                            </tr>
+-                                        ))}
+-                                    </tbody>
+-                                </table>
+-                            </div>
++                            <strong className="text-lg text-neutral-900 block mb-2">((?좎쓽?ы빆))</strong>
++                            - ?ъ뾽?꾩씠??怨좊룄?붾? ?꾪븳 李쎌뾽 ?꾨Ц媛 ?먮뒗, ?ъ뾽?먮벑濡앹쬆 異쒖썝 ??踰빧룻뻾???꾨Ц媛瑜??꾩큺?????뚯슂?섎뒗 鍮꾩슜?댁뼱????{"\n\n"}
++                            <strong className="block text-orange-700 mb-1">硫섑넗 ?먭꺽: </strong>
++                            1. 諛뺤궗?숈쐞 ?뚯??? 2. ?앹궗?숈쐞 ?뚯???以??대떦 遺꾩빞 5???댁긽 寃쎈젰?? 3. ?숈궗?숈쐞 ?뚯???以??대떦 遺꾩빞 7???댁긽 寃쎈젰?? 4. 議곌탳???댁긽????숆탳?? 5. 5湲??먮뒗 ?댁뿉 ?곷떦?섎뒗 怨듬Т?먯쑝濡??대떦遺꾩빞 5???댁긽 寃쎈젰?? 6. 湲곗닠?? 蹂由ъ궗, 湲곗닠吏?꾩궗, 寃쎌쁺吏?꾩궗, 怨듭씤?뚭퀎?? ?몃Т?? 蹂?몄궗, 怨듭씤?몃Т?????꾨Ц吏?醫낆궗?? ?????ы빆???곹빀?섏? ?딆? ?먯뿉寃뚮뒗 硫섑넗留곷퉬 吏湲?遺덇?.
+                         </div>
+ 
++                        <div className="bg-neutral-100 p-5 rounded-lg border border-neutral-200">
++                            <strong className="text-lg text-neutral-900 block mb-3">((吏異??꾩슂 ?쒕쪟 紐⑸줉))</strong>
++                            1. ?꾨Ц媛 ?꾩큺?숈쓽??6??, 2. 硫섑넗留?蹂닿퀬???꾩옣?ъ쭊 ?꾩닔, ?⑤씪?몄쓽 寃쎌슦 硫섑넗留??쒖옉?쒓컙怨??앹떆媛꾩씠 ?섏삤?꾨줉), 3. 硫섑넗 ?좊텇利? ?듭옣?щ낯, 4. ?대젰??
++                        </div>
+                     </div>
+                 </Modal>
+ 
