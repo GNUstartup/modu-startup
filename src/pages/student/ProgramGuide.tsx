@@ -19,12 +19,12 @@ const SectionBadge = ({ title, color = "indigo" }: { title: string, color?: "ind
 
 const NoticeCard = ({ children, color = "neutral" }: { children: React.ReactNode, color?: "neutral" | "red" | "blue" | "green" | "purple" | "orange" }) => {
     const colorMap = {
-        neutral: "bg-neutral-50 border-neutral-200 text-neutral-800",
-        red: "bg-red-50 border-red-200 text-red-900",
-        blue: "bg-blue-50 border-blue-200 text-blue-900",
-        green: "bg-green-50 border-green-200 text-green-900",
-        purple: "bg-purple-50 border-purple-200 text-purple-900",
-        orange: "bg-orange-50 border-orange-200 text-orange-900"
+        neutral: "bg-white border-neutral-200 text-neutral-800",
+        red: "bg-white border-red-200 text-neutral-800",
+        blue: "bg-white border-blue-200 text-neutral-800",
+        green: "bg-white border-green-200 text-neutral-800",
+        purple: "bg-white border-purple-200 text-neutral-800",
+        orange: "bg-white border-orange-200 text-neutral-800"
     };
     const iconColorMap = {
         neutral: "text-neutral-500",
@@ -36,7 +36,7 @@ const NoticeCard = ({ children, color = "neutral" }: { children: React.ReactNode
     };
 
     return (
-        <div className={`p-5 mb-5 rounded-xl border flex items-start gap-3 shadow-sm ${colorMap[color]}`}>
+        <div className={`p-5 mb-5 rounded-xl border flex items-start gap-3 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] ${colorMap[color]}`}>
             <AlertCircle className={`w-6 h-6 flex-shrink-0 mt-0.5 ${iconColorMap[color]}`} />
             <div className="flex-1 space-y-2">
                 {children}
@@ -143,7 +143,7 @@ export default function ProgramGuide() {
 
                     <div className="mb-8">
                         <SectionBadge title="개요" color="indigo" />
-                        <div className="font-semibold text-neutral-800 p-5 bg-indigo-50/50 rounded-xl border border-indigo-100">여러분들이 받게 되는 ‘성장 지원금’은 단순한 장학금이거나 지원금이 아니며 정부(중소벤처기업부) 예산으로 집행되는 ‘사업비’입니다. 따라서 모든 지출(비용)은 사업계획서에 명시된 창업아이템의 개발·사업화 목적에 직접 연관 되어야 하며, ‘사업단이 대신 결제(구매대행)’하는 방식으로만 집행됩니다.{"\n\n"}양산 목적의 물품·용역 구매는 불가, 시제품 제작 및 시장조사 관련 사항만 집행 가능.{"\n"}모든 거래의 세금계산서나 영수증은 ‘경상국립대학교 산학협력단’ 명의로 발행되어야 합니다.{"\n"}만약 참가자가 <span className="text-red-600 font-bold">개인 명의 결제 불가</span>하거나, 개인 계좌로 송금한 경우 사업비로 인정하지 않습니다.</div>
+                        <div className="font-semibold text-neutral-800 p-5 bg-indigo-50/50 rounded-xl border border-indigo-100">여러분들이 받게 되는 ‘성장 지원금’은 단순한 장학금이거나 지원금이 아니며 정부(중소벤처기업부) 예산으로 집행되는 ‘사업비’입니다. 따라서 모든 지출(비용)은 사업계획서에 명시된 창업아이템의 개발·사업화 목적에 직접 연관 되어야 하며, ‘사업단이 대신 결제(구매대행)’하는 방식으로만 집행됩니다.{"\n\n"}양산 목적의 물품·용역 구매는 불가, 시제품 제작 및 시장조사 관련 사항만 집행 가능.{"\n"}모든 거래의 세금계산서나 영수증은 ‘경상국립대학교 산학협력단’ 명의로 발행되어야 합니다.{"\n"}만약 참가자가 개인 신용·체크카드로 선결제하거나, 개인 계좌로 송금한 경우 사업비로 인정하지 않습니다.</div>
                     </div>
 
                     <div className="mb-8">
@@ -165,15 +165,15 @@ export default function ProgramGuide() {
 
                     <NoticeCard color="red">
                         <strong className="block text-red-900 text-xl mb-3">유의사항</strong>
-                        <ul className="list-disc pl-6 space-y-2 text-red-900 font-semibold text-[15px]">
+                        <ul className="list-disc pl-6 space-y-2 font-semibold text-[15px]">
                             <li>회차당 사업비 사용 금액 최대한 크게</li>
                             <li>파일명 규칙: 날짜_팀명_비목_금액</li>
                             <li>사업계획서 미기재 건 신청 불가</li>
                             <li><span className="text-red-600 font-bold">타 사업 중복지급 불가</span></li>
                             <li>원본서류 관리 철저</li>
-                            <li><span className="text-red-600 font-bold">기자재(PC, 노트북 등 자산성 물품) 구매 불가</span></li>
+                            <li>기자재(PC, 노트북 등 <span className="text-red-600 font-bold">자산성 물품) 구매 불가</span></li>
                             <li><span className="text-red-600 font-bold">개인 명의 결제 불가</span>, 사업단 직접 결제(법인카드, 계좌이체) 원칙</li>
-                            <li><span className="text-red-600 font-bold">불명확한 지출은 추후 부적정 판정 가능</span>. 환수 조치 될 수 있음.</li>
+                            <li>불명확한 지출은 추후 부적정 판정 가능</li>
                             <li>견적서, 거래명세서, 영수증 등의 명의는 ‘사업단’ 또는 ‘참가자 본인’으로 통일</li>
                         </ul>
                     </NoticeCard>
@@ -251,8 +251,8 @@ export default function ProgramGuide() {
                     <NoticeCard color="green">
                         <strong className="block text-xl mb-3 text-green-900">유의사항</strong>
                         <ul className="list-disc pl-6 space-y-2 font-semibold mt-1">
-                            <li>취득시 자산화(<span className="text-red-600 font-bold">기계·장치) 및 MVP 제작에 소모되지 않는 품목 불가</span>.</li>
-                            <li><span className="text-red-600 font-bold">해외 직구 상품 및 구독 서비스 불가</span>.</li>
+                            <li>취득시 자산화(기계·장치) 및 MVP 제작에 소모되지 않는 품목 불가.</li>
+                            <li><span className="text-red-600 font-bold">해외 직구 상품 및 구독 서비스 구매 불가</span>.</li>
                             <li>매주 화요일 신청 건 대상 수~목요일 구매 진행. 구매품목과 구매수량이 모두 보이게 검수 사진 촬영 필수.</li>
                         </ul>
                     </NoticeCard>
@@ -295,7 +295,7 @@ export default function ProgramGuide() {
                         <strong className="block text-xl mb-3 text-purple-900">유의사항</strong>
                         <ul className="list-disc pl-6 space-y-2 font-semibold mt-1">
                             <li>외부 전문업체는 1년 이상의 해당 분야 종사경력 및 외주용역대상 창업아이템과 유사한 아이템의 제작 경험 보유 필요(업체의 사업자등록증 상 적정 업종 확인).</li>
-                            <li><span className="text-red-600 font-bold">프리랜서 중개 서비스(크몽, 위시켓 등) 통한 집행 절대 불가</span>. <span className="text-red-600 font-bold">양산목적 금형제작 집행 불가</span>.</li>
+                            <li>프리랜서 중개 서비스(크몽, 위시켓 등) 통한 집행 <span className="text-red-600 font-bold">절대 불가</span>. <span className="text-red-600 font-bold">양산목적 금형제작 집행 불가</span>.</li>
                             <li>절차 소요시간(1~2주) 감안하여 사전 신청 필요.</li>
                         </ul>
                     </NoticeCard>

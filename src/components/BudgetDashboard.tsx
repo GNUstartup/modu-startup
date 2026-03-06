@@ -102,8 +102,13 @@ export default function BudgetDashboard() {
             const recordsData = await recordsRes.json();
             const teamsData = await teamsRes.json();
 
-            const validRecords = recordsData.records.filter((r: AirtableRecord) => r.fields["팀명"] && r.fields["팀명"].trim().length > 0);
             const validTeams = teamsData.records.filter((t: AirtableTeamRecord) => t.fields["팀명"] && t.fields["팀명"].trim().length > 0 && t.fields["역할"] !== '관리자');
+            const validTeamNames = new Set(validTeams.map((t: AirtableTeamRecord) => t.fields["팀명"]));
+
+            const validRecords = recordsData.records.filter((r: AirtableRecord) => {
+                const teamName = r.fields["팀명"];
+                return teamName && teamName.trim().length > 0 && validTeamNames.has(teamName);
+            });
 
             setRecords(validRecords);
             setTeamRecords(validTeams);
