@@ -45,16 +45,23 @@ const NoticeCard = ({ children, color = "neutral" }: { children: React.ReactNode
     );
 };
 
-const ProcessFlow = ({ steps }: { steps: string[] }) => {
+const ProcessFlow = ({ steps, theme = "neutral" }: { steps: string[], theme?: "neutral" | "blue" | "orange" }) => {
+    const themeMap = {
+        neutral: { bg: "bg-white", text: "text-neutral-800", border: "border-neutral-200", arrow: "text-neutral-400" },
+        blue: { bg: "bg-white", text: "text-blue-800", border: "border-blue-200", arrow: "text-blue-500" },
+        orange: { bg: "bg-white", text: "text-orange-800", border: "border-orange-200", arrow: "text-orange-500" }
+    };
+    const t = themeMap[theme];
+
     return (
-        <div className="flex flex-wrap items-center gap-2 mb-5">
+        <div className="flex flex-wrap items-center gap-2 mb-4">
             {steps.map((step, index) => (
                 <div key={index} className="flex items-center mt-2">
-                    <span className="font-bold text-[14px] text-neutral-800 bg-white px-4 py-2 rounded-full shadow-sm border border-neutral-200">
+                    <span className={`font-bold text-[14px] ${t.text} ${t.bg} px-4 py-2 rounded-full shadow-sm border ${t.border}`}>
                         {step}
                     </span>
                     {index < steps.length - 1 && (
-                        <ArrowRight className="w-5 h-5 text-neutral-400 mx-1 flex-shrink-0" />
+                        <ArrowRight className={`w-5 h-5 mx-1 flex-shrink-0 ${t.arrow}`} />
                     )}
                 </div>
             ))}
@@ -143,24 +150,28 @@ export default function ProgramGuide() {
 
                     <div className="mb-8">
                         <SectionBadge title="개요" color="indigo" />
-                        <div className="font-semibold text-neutral-800 p-5 bg-indigo-50/50 rounded-xl border border-indigo-100">여러분들이 받게 되는 ‘성장 지원금’은 단순한 장학금이거나 지원금이 아니며 정부(중소벤처기업부) 예산으로 집행되는 ‘사업비’입니다. 따라서 모든 지출(비용)은 사업계획서에 명시된 창업아이템의 개발·사업화 목적에 직접 연관 되어야 하며, ‘사업단이 대신 결제(구매대행)’하는 방식으로만 집행됩니다.{"\n\n"}양산 목적의 물품·용역 구매는 불가, 시제품 제작 및 시장조사 관련 사항만 집행 가능.{"\n"}모든 거래의 세금계산서나 영수증은 ‘경상국립대학교 산학협력단’ 명의로 발행되어야 합니다.{"\n"}만약 참가자가 개인 신용·체크카드로 선결제하거나, 개인 계좌로 송금한 경우 사업비로 인정하지 않습니다.</div>
+                        <div className="font-semibold text-neutral-800 p-5 bg-indigo-50/50 rounded-xl border border-indigo-100">여러분들이 받게 되는 ‘성장 지원금’은 단순한 장학금이거나 지원금이 아니며 정부(중소벤처기업부) 예산으로 집행되는 ‘<span className="text-red-600 font-bold">사업비</span>’입니다. 따라서 모든 지출(비용)은 사업계획서에 명시된 창업아이템의 개발·사업화 목적에 직접 연관 되어야 하며, ‘<span className="text-red-600 font-bold">사업단이 대신 결제(구매대행)</span>’하는 방식으로만 집행됩니다.{"\n\n"}<span className="text-red-600 font-bold">양산 목적의 물품·용역 구매는 불가, 시제품 제작 및 시장조사 관련 사항만 집행 가능.</span>{"\n"}모든 거래의 세금계산서나 영수증은 ‘경상국립대학교 산학협력단’ 명의로 발행되어야 합니다.{"\n"}만약 참가자가 개인 신용·체크카드로 선결제하거나, 개인 계좌로 송금한 경우 사업비로 인정하지 않습니다.</div>
                     </div>
 
                     <div className="mb-8">
                         <SectionBadge title="지원금 사용" color="indigo" />
-                        <div className="font-semibold text-neutral-800 p-5 bg-indigo-50/50 rounded-xl border border-indigo-100">현금을 참가자에게 지급하는 것이 아닌 참가자의 요청을 받고 사업단에서 대리 결제하는 방식.{"\n"}즉, 참가자가 ‘필요한 품목’을 제안하면, 사업단이 승인 후 직접 결제하는 구조{"\n"}(외상 거래 기본, 선결제 불가)</div>
+                        <div className="font-semibold text-neutral-800 p-5 bg-indigo-50/50 rounded-xl border border-indigo-100">현금을 참가자에게 지급하는 것이 아닌 참가자의 요청을 받고 <span className="text-red-600 font-bold">사업단에서 대리 결제</span>하는 방식.{"\n"}즉, 참가자가 ‘필요한 품목’을 제안하면, <span className="text-red-600 font-bold">사업단이 승인 후 직접 결제</span>하는 구조{"\n"}(외상 거래 기본, <span className="text-red-600 font-bold">선결제 불가</span>)</div>
                     </div>
 
-                    <div className="mb-6 p-6 bg-neutral-50 border border-neutral-200 rounded-2xl shadow-sm">
-                        <div className="flex items-center mb-4">
-                            <SectionBadge title="기본 진행 절차" color="indigo" />
+                    <div className="mb-8">
+                        <SectionBadge title="기본 진행 절차" color="indigo" />
+
+                        <div className="space-y-4 mt-2">
+                            <div className="p-6 bg-blue-50 border border-blue-100 rounded-2xl shadow-sm">
+                                <div className="mb-2"><SectionBadge title="지원금 사용 (1~3주 소요)" color="blue" /></div>
+                                <ProcessFlow steps={['사전 신청(월)', '내부 검토', '승인 후 진행', '결제 및 지급']} theme="blue" />
+                            </div>
+
+                            <div className="p-6 bg-orange-50 border border-orange-100 rounded-2xl shadow-sm">
+                                <div className="mb-2"><SectionBadge title="계획 변경 (1~2주 소요)" color="orange" /></div>
+                                <ProcessFlow steps={['사전 신청(목)', '내부 검토', '승인 후 결재', '완료 및 반영']} theme="orange" />
+                            </div>
                         </div>
-
-                        <strong className="block text-indigo-700 text-[16px] mb-2"><SectionBadge title="지원금 사용 (1~3주 소요)" color="indigo" /></strong>
-                        <ProcessFlow steps={['사전 신청(월)', '내부 검토', '승인 후 진행', '결제 및 지급']} />
-
-                        <strong className="block text-indigo-700 text-[16px] mb-2 mt-6"><SectionBadge title="계획 변경 (1~2주 소요)" color="indigo" /></strong>
-                        <ProcessFlow steps={['사전 신청(목)', '내부 검토', '승인 후 결재', '완료 및 반영']} />
                     </div>
 
                     <NoticeCard color="red">
