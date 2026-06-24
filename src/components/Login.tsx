@@ -58,7 +58,7 @@ export default function Login() {
                     참가자 로그인
                 </h2>
                 <p className="mt-2 text-center text-sm text-neutral-600">
-                    MVP 제작비 신청을 위해 참가자 계정으로 로그인해주세요.
+                    모두의 창업 MVP 제작비 신청 시스템입니다. 참가자 계정으로 로그인해주세요.
                 </p>
             </div>
 
