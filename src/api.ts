@@ -342,3 +342,44 @@ export async function apiSubmitSettlement(params: {
 
   if (updErr) throw new Error('증빙 제출 저장 실패: ' + updErr.message);
 }
+
+// ===== 신청 수정 후 재제출 (1차 반려 → 재검토 요청) =====
+// "수정 필요" 상태의 신청 내용을 수정하고 상태를 "담당자 검토 대기 중"으로 되돌립니다.
+// 반려사유는 이력 확인을 위해 그대로 둡니다.
+export async function apiUpdateApplication(params: {
+  신청번호: string;
+  참가자명: string;
+  fields: Partial<Application>; // 수정할 내용 칸들
+}): Promise<void> {
+  // 기존 처리이력 가져오기
+  const { data: rows, error: selErr } = await supabase
+    .from(T_APPLICATIONS)
+    .select('처리이력')
+    .eq('신청번호', params.신청번호)
+    .limit(1);
+
+  if (selErr) throw new Error('신청 수정 실패: ' + selErr.message);
+  if (!rows || rows.length === 0) throw new Error('해당 신청번호를 찾을 수 없습니다: ' + params.신청번호);
+
+  // 처리이력에 한 줄 추가
+  const now = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+  const entry = `${now} / ${params.참가자명} / 수정 후 재제출`;
+  const prev = (rows[0] as any)['처리이력'] || '';
+  const combined = prev ? `${prev}\n${entry}` : entry;
+
+  // 업데이트 데이터: 수정 내용 + 상태 복구 + 이력
+  // 신청번호·참가자명·신청일시 등 불변 칸은 덮어쓰지 않도록 제거
+  const { 신청번호: _n, 참가자명: _p, 신청일시: _d, 상태: _s, 처리이력: _h, 반려사유: _r, ...rest } = params.fields as any;
+  const updateData: Record<string, any> = {
+    ...rest,
+    상태: '담당자 검토 대기 중',
+    처리이력: combined,
+  };
+
+  const { error: updErr } = await supabase
+    .from(T_APPLICATIONS)
+    .update(updateData)
+    .eq('신청번호', params.신청번호);
+
+  if (updErr) throw new Error('신청 수정 저장 실패: ' + updErr.message);
+}
