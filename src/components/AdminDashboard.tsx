@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
-import { RefreshCw, CheckCircle2, FileText, AlertCircle, Clock, XCircle, Search, Info } from 'lucide-react';
+import { RefreshCw, CheckCircle2, FileText, AlertCircle, Clock, XCircle, Search, Info, Banknote } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { apiGetApplications, apiUpdateStatus } from '../api';
 import type { Application } from '../api';
 import { STATUS_INFO } from '../statusInfo';
+
+// 증빙 관련 상태 목록
+const SETTLEMENT_STATUSES = ['정산 신청', '정산 반려', '정산 중', '정산 완료'];
 
 export default function AdminDashboard() {
     const { user } = useAuth();
@@ -13,6 +16,8 @@ export default function AdminDashboard() {
     const [selectedDetail, setSelectedDetail] = useState<Application | null>(null);
     const [rejectTarget, setRejectTarget] = useState<Application | null>(null);
     const [rejectReason, setRejectReason] = useState('');
+    // '1차': 수정 필요(1차 반려), '2차': 정산 반려(2차 반려)
+    const [rejectMode, setRejectMode] = useState<'1차' | '2차'>('1차');
     const [processing, setProcessing] = useState(false);
 
     // 상태 설명 팝업
@@ -43,6 +48,7 @@ export default function AdminDashboard() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    // ── 1차 승인 (사전 승인 완료) ──────────────────────────────────────────
     const handleApprove = async (rec: Application) => {
         if (!rec['신청번호']) return;
         setProcessing(true);
@@ -57,13 +63,15 @@ export default function AdminDashboard() {
         }
     };
 
+    // ── 반려 확정 (1차: 수정 필요 / 2차: 정산 반려) ────────────────────────
     const handleReject = async () => {
         if (!rejectTarget?.['신청번호']) return;
         if (!rejectReason.trim()) { alert('반려 사유를 입력해주세요.'); return; }
         setProcessing(true);
         try {
+            const targetStatus = rejectMode === '1차' ? '수정 필요' : '정산 반려';
             await apiUpdateStatus({
-                신청번호: rejectTarget['신청번호'], 상태: '수정 필요',
+                신청번호: rejectTarget['신청번호'], 상태: targetStatus,
                 반려사유: rejectReason.trim(), 처리자: user?.projectName || '관리자',
             });
             await fetchAll();
@@ -72,6 +80,36 @@ export default function AdminDashboard() {
             setSelectedDetail(null);
         } catch (err: any) {
             alert(err.message || '반려 처리 중 오류가 발생했습니다.');
+        } finally {
+            setProcessing(false);
+        }
+    };
+
+    // ── 2차 승인: 정산 중 ──────────────────────────────────────────────────
+    const handleSettlementApprove = async (rec: Application) => {
+        if (!rec['신청번호']) return;
+        setProcessing(true);
+        try {
+            await apiUpdateStatus({ 신청번호: rec['신청번호'], 상태: '정산 중', 처리자: user?.projectName || '관리자' });
+            await fetchAll();
+            setSelectedDetail(null);
+        } catch (err: any) {
+            alert(err.message || '처리 중 오류가 발생했습니다.');
+        } finally {
+            setProcessing(false);
+        }
+    };
+
+    // ── 2차 완료: 정산 완료 ────────────────────────────────────────────────
+    const handleSettlementComplete = async (rec: Application) => {
+        if (!rec['신청번호']) return;
+        setProcessing(true);
+        try {
+            await apiUpdateStatus({ 신청번호: rec['신청번호'], 상태: '정산 완료', 처리자: user?.projectName || '관리자' });
+            await fetchAll();
+            setSelectedDetail(null);
+        } catch (err: any) {
+            alert(err.message || '처리 중 오류가 발생했습니다.');
         } finally {
             setProcessing(false);
         }
@@ -118,6 +156,13 @@ export default function AdminDashboard() {
         } catch { return '-'; }
     };
 
+    // "원본파일명|||url" 파싱 헬퍼
+    const parseAttach = (raw?: string) => {
+        if (!raw) return null;
+        const si = raw.indexOf('|||');
+        return { name: si !== -1 ? raw.slice(0, si) : '보기', href: si !== -1 ? raw.slice(si + 3) : raw };
+    };
+
     const uniqueCategories = Array.from(new Set(records.map(r => r['비목'] || ''))).filter(Boolean).sort();
     const uniqueStatuses = Array.from(new Set(records.map(r => r['상태'] || ''))).filter(Boolean).sort();
 
@@ -128,9 +173,9 @@ export default function AdminDashboard() {
         return matchSearch && matchCat && matchStatus;
     });
 
-    // "처리 필요" 상태 (담당자 검토 대기 중, 정산 신청)
+    // "처리 필요" 상태 (담당자 검토 대기 중, 정산 신청, 정산 반려)
     const pendingCount = records.filter(r =>
-        r['상태'] === '담당자 검토 대기 중' || r['상태'] === '정산 신청'
+        r['상태'] === '담당자 검토 대기 중' || r['상태'] === '정산 신청' || r['상태'] === '정산 반려'
     ).length;
 
     return (
@@ -260,7 +305,7 @@ export default function AdminDashboard() {
                 </div>
             )}
 
-            {/* 상세 + 승인/반려 모달 */}
+            {/* 상세 모달 */}
             {selectedDetail && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setSelectedDetail(null)}>
                     <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden" onClick={e => e.stopPropagation()}>
@@ -270,25 +315,27 @@ export default function AdminDashboard() {
                             </h3>
                             <button onClick={() => setSelectedDetail(null)} className="text-neutral-400 hover:text-neutral-600">✕</button>
                         </div>
-                        <div className="px-6 py-5 space-y-3 max-h-[55vh] overflow-y-auto text-sm">
+
+                        {/* 본문 */}
+                        <div className="px-6 py-5 space-y-3 max-h-[60vh] overflow-y-auto text-sm">
                             <DetailRow label="비목" value={selectedDetail['비목']} />
                             <DetailRow label="신청금액" value={`${(Number(selectedDetail['신청금액']) || 0).toLocaleString()}원`} />
-                            {/* 상태 행: 뱃지 + 설명 팝업 버튼 */}
+
+                            {/* 상태 행 */}
                             <div className="flex justify-between py-1 border-b border-neutral-50">
                                 <span className="text-neutral-500">상태</span>
                                 <div className="flex items-center gap-1.5">
                                     {getStatusBadge(selectedDetail['상태'])}
                                     {STATUS_INFO[selectedDetail['상태'] || ''] && (
-                                        <button
-                                            onClick={() => setStatusPopup(selectedDetail['상태'] || '')}
-                                            className="text-neutral-400 hover:text-indigo-500 transition-colors"
-                                            title="상태 설명 보기"
-                                        >
+                                        <button onClick={() => setStatusPopup(selectedDetail['상태'] || '')}
+                                            className="text-neutral-400 hover:text-indigo-500 transition-colors" title="상태 설명 보기">
                                             <Info className="w-3.5 h-3.5" />
                                         </button>
                                     )}
                                 </div>
                             </div>
+
+                            {/* 비목별 상세 */}
                             {selectedDetail['비목'] === '여비' && <>
                                 <DetailRow label="출발지" value={selectedDetail['출발지']} />
                                 <DetailRow label="도착지" value={selectedDetail['도착지']} />
@@ -312,31 +359,64 @@ export default function AdminDashboard() {
                                 <DetailRow label="멘토링시간" value={selectedDetail['멘토링시간']} />
                                 <DetailRow label="멘토링주제" value={selectedDetail['멘토링주제']} />
                             </>}
+
+                            {/* 첨부파일 */}
                             {selectedDetail['첨부파일'] && (() => {
-                                const raw: string = selectedDetail['첨부파일'];
-                                const sepIdx = raw.indexOf('|||');
-                                const linkText = sepIdx !== -1 ? raw.slice(0, sepIdx) : '첨부파일 보기';
-                                const linkUrl  = sepIdx !== -1 ? raw.slice(sepIdx + 3) : raw;
+                                const p = parseAttach(selectedDetail['첨부파일']);
+                                if (!p) return null;
                                 return (
                                     <div className="flex justify-between py-1 border-b border-neutral-50">
                                         <span className="text-neutral-500">첨부파일</span>
-                                        <a
-                                            href={linkUrl}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="font-medium text-indigo-600 hover:text-indigo-800 underline max-w-[60%] text-right break-all"
-                                        >
-                                            {linkText}
+                                        <a href={p.href} target="_blank" rel="noopener noreferrer"
+                                            className="font-medium text-indigo-600 hover:text-indigo-800 underline max-w-[60%] text-right break-all">
+                                            {p.name}
                                         </a>
                                     </div>
                                 );
                             })()}
+
+                            {/* ── 증빙 서류 (정산 신청 이상 상태에서만 표시) ── */}
+                            {SETTLEMENT_STATUSES.includes(selectedDetail['상태'] || '') &&
+                                (selectedDetail['증빙_영수증'] || selectedDetail['증빙_수령'] || selectedDetail['증빙_기타1'] || selectedDetail['증빙_기타2'] || selectedDetail['증빙_메모']) && (
+                                    <div className="mt-3 pt-3 border-t border-neutral-200">
+                                        <p className="text-xs font-bold text-neutral-600 mb-2 flex items-center gap-1.5">
+                                            <Banknote className="w-3.5 h-3.5 text-violet-500" /> 제출된 증빙 서류
+                                        </p>
+                                        {[
+                                            { label: '영수증', val: selectedDetail['증빙_영수증'] },
+                                            { label: '수령 증빙', val: selectedDetail['증빙_수령'] },
+                                            { label: '기타1', val: selectedDetail['증빙_기타1'] },
+                                            { label: '기타2', val: selectedDetail['증빙_기타2'] },
+                                        ].map(({ label, val }) => {
+                                            const p = parseAttach(val);
+                                            if (!p) return null;
+                                            return (
+                                                <div key={label} className="flex justify-between py-1 border-b border-neutral-50">
+                                                    <span className="text-neutral-500">{label}</span>
+                                                    <a href={p.href} target="_blank" rel="noopener noreferrer"
+                                                        className="font-medium text-violet-600 hover:text-violet-800 underline max-w-[60%] text-right break-all">
+                                                        {p.name}
+                                                    </a>
+                                                </div>
+                                            );
+                                        })}
+                                        {selectedDetail['증빙_메모'] && (
+                                            <div className="mt-1.5 p-2 bg-violet-50 rounded-lg text-xs text-violet-800">
+                                                <span className="font-semibold">메모: </span>{selectedDetail['증빙_메모']}
+                                            </div>
+                                        )}
+                                    </div>
+                                )
+                            }
+
+                            {/* 처리이력 */}
                             {selectedDetail['처리이력'] && (
                                 <div className="mt-2 p-3 bg-neutral-50 border border-neutral-100 rounded-lg whitespace-pre-line text-xs text-neutral-600">
                                     <span className="font-semibold text-neutral-700">처리이력:</span><br />{selectedDetail['처리이력']}
                                 </div>
                             )}
-                            {/* 수정 필요/정산 반려 시 반려사유 표시 */}
+
+                            {/* 반려 사유 (수정 필요 / 정산 반려) */}
                             {(selectedDetail['상태'] === '수정 필요' || selectedDetail['상태'] === '정산 반려') && selectedDetail['반려사유'] && (
                                 <div className="mt-2 p-3 bg-red-50 border border-red-100 rounded-lg">
                                     <span className="font-semibold text-red-700">반려 사유: </span>
@@ -344,30 +424,66 @@ export default function AdminDashboard() {
                                 </div>
                             )}
                         </div>
-                        <div className="px-6 py-4 border-t border-neutral-100 flex justify-end gap-2">
-                            <button onClick={() => setRejectTarget(selectedDetail)} disabled={processing}
-                                className="px-4 py-2 text-sm font-bold text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 disabled:opacity-50 transition-colors">
-                                수정 필요 (반려)
-                            </button>
-                            <button onClick={() => handleApprove(selectedDetail)} disabled={processing}
-                                className="px-5 py-2 text-sm font-bold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors">
-                                {processing ? '처리 중...' : '사전 승인 완료'}
-                            </button>
+
+                        {/* ── 하단 버튼: 상태별 분기 ── */}
+                        <div className="px-6 py-4 border-t border-neutral-100 flex justify-end gap-2 flex-wrap">
+                            {/* 1차: 담당자 검토 대기 중 */}
+                            {selectedDetail['상태'] === '담당자 검토 대기 중' && <>
+                                <button onClick={() => { setRejectMode('1차'); setRejectTarget(selectedDetail); }} disabled={processing}
+                                    className="px-4 py-2 text-sm font-bold text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 disabled:opacity-50 transition-colors">
+                                    수정 필요 (반려)
+                                </button>
+                                <button onClick={() => handleApprove(selectedDetail)} disabled={processing}
+                                    className="px-5 py-2 text-sm font-bold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors">
+                                    {processing ? '처리 중...' : '사전 승인 완료'}
+                                </button>
+                            </>}
+
+                            {/* 2차: 정산 신청 or 정산 반려 → 증빙 검토 버튼 */}
+                            {(selectedDetail['상태'] === '정산 신청' || selectedDetail['상태'] === '정산 반려') && <>
+                                <button onClick={() => { setRejectMode('2차'); setRejectTarget(selectedDetail); }} disabled={processing}
+                                    className="px-4 py-2 text-sm font-bold text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 disabled:opacity-50 transition-colors">
+                                    정산 반려
+                                </button>
+                                <button onClick={() => handleSettlementApprove(selectedDetail)} disabled={processing}
+                                    className="inline-flex items-center gap-1.5 px-5 py-2 text-sm font-bold text-white bg-violet-600 rounded-lg hover:bg-violet-700 disabled:opacity-50 transition-colors">
+                                    <Banknote className="w-4 h-4" />
+                                    {processing ? '처리 중...' : '증빙 승인 (정산 진행)'}
+                                </button>
+                            </>}
+
+                            {/* 2차: 정산 중 → 정산 완료 */}
+                            {selectedDetail['상태'] === '정산 중' && (
+                                <button onClick={() => handleSettlementComplete(selectedDetail)} disabled={processing}
+                                    className="inline-flex items-center gap-1.5 px-5 py-2 text-sm font-bold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors">
+                                    <CheckCircle2 className="w-4 h-4" />
+                                    {processing ? '처리 중...' : '정산 완료 (송금 완료)'}
+                                </button>
+                            )}
+
+                            {/* 정산 완료 — 최종 상태, 버튼 없음 (안내 텍스트만) */}
+                            {selectedDetail['상태'] === '정산 완료' && (
+                                <span className="text-sm text-neutral-400 italic">최종 완료 — 추가 처리 없음</span>
+                            )}
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* 반려 사유 입력 모달 */}
+            {/* 반려 사유 입력 모달 (1차/2차 공통) */}
             {rejectTarget && (
                 <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
                     <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
                         <div className="px-6 py-4 border-b border-neutral-100">
-                            <h3 className="text-lg font-bold text-neutral-900">수정 요청 사유 입력</h3>
+                            <h3 className="text-lg font-bold text-neutral-900">
+                                {rejectMode === '1차' ? '수정 요청 사유 입력' : '정산 반려 사유 입력'}
+                            </h3>
                         </div>
                         <div className="px-6 py-5">
                             <textarea value={rejectReason} onChange={e => setRejectReason(e.target.value)}
-                                placeholder="수정이 필요한 사유를 입력하세요. 참가자에게 표시됩니다."
+                                placeholder={rejectMode === '1차'
+                                    ? '수정이 필요한 사유를 입력하세요. 참가자에게 표시됩니다.'
+                                    : '정산 반려 사유를 입력하세요. 참가자에게 표시됩니다.'}
                                 className="w-full min-h-[120px] px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-200 outline-none focus:ring-2 focus:ring-indigo-500 text-sm resize-y" />
                         </div>
                         <div className="px-6 py-4 border-t border-neutral-100 flex justify-end gap-2">
@@ -377,14 +493,12 @@ export default function AdminDashboard() {
                             </button>
                             <button onClick={handleReject} disabled={processing}
                                 className="px-5 py-2 text-sm font-bold text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors">
-                                {processing ? '처리 중...' : '수정 필요 확정'}
+                                {processing ? '처리 중...' : (rejectMode === '1차' ? '수정 필요 확정' : '정산 반려 확정')}
                             </button>
                         </div>
                     </div>
                 </div>
             )}
-
-            {/* 상태 설명 팝업 (모달 위에서도 열릴 수 있도록 z-[70]) */}
         </div>
     );
 }
