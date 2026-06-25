@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { RefreshCw, CheckCircle2, FileText, AlertCircle, Clock, XCircle, ArrowDownUp, Info } from 'lucide-react';
-import { apiGetApplications } from '../api';
+import { RefreshCw, CheckCircle2, FileText, AlertCircle, Clock, XCircle, ArrowDownUp, Info, UploadCloud, Send } from 'lucide-react';
+import { apiGetApplications, apiUploadFile, apiSubmitSettlement } from '../api';
 import type { Application } from '../api';
 import { STATUS_INFO } from '../statusInfo';
 
@@ -14,6 +14,18 @@ export default function StudentDashboard() {
 
     // 상태 설명 팝업
     const [statusPopup, setStatusPopup] = useState<string | null>(null);
+
+    // 정산 신청 모달
+    const [settlementTarget, setSettlementTarget] = useState<Application | null>(null);
+    const [settlementFiles, setSettlementFiles] = useState<{
+        영수증: File | null;
+        수령: File | null;
+        기타1: File | null;
+        기타2: File | null;
+    }>({ 영수증: null, 수령: null, 기타1: null, 기타2: null });
+    const [settlementMemo, setSettlementMemo] = useState('');
+    const [isSettlementSubmitting, setIsSettlementSubmitting] = useState(false);
+    const [settlementError, setSettlementError] = useState('');
 
     const budgets = {
         yubi: user?.budgetYubi || 0,
@@ -28,7 +40,6 @@ export default function StudentDashboard() {
         setErrorMsg('');
         try {
             const apps = await apiGetApplications(user.projectName, 'student');
-            // 신청일시 기준 정렬 (오래된 것부터 연번 부여)
             const sorted = [...apps].sort((a, b) =>
                 new Date(a['신청일시'] || 0).getTime() - new Date(b['신청일시'] || 0).getTime()
             );
@@ -48,6 +59,55 @@ export default function StudentDashboard() {
         fetchMyRecords();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user?.projectName]);
+
+    // 정산 신청 모달 초기화 및 열기
+    const openSettlementModal = (rec: Application) => {
+        setSettlementTarget(rec);
+        setSettlementFiles({ 영수증: null, 수령: null, 기타1: null, 기타2: null });
+        setSettlementMemo('');
+        setSettlementError('');
+    };
+
+    // 정산 신청 제출 핸들러
+    const handleSettlementSubmit = async () => {
+        if (!settlementTarget?.['신청번호'] || !user?.projectName) return;
+        setIsSettlementSubmitting(true);
+        setSettlementError('');
+
+        try {
+            // 각 파일을 순서대로 업로드 (선택한 것만)
+            const toStr = async (file: File | null): Promise<string | undefined> => {
+                if (!file) return undefined;
+                const { url, 원본파일명 } = await apiUploadFile(file);
+                return `${원본파일명}|||${url}`;
+            };
+
+            const [영수증Str, 수령Str, 기타1Str, 기타2Str] = await Promise.all([
+                toStr(settlementFiles.영수증),
+                toStr(settlementFiles.수령),
+                toStr(settlementFiles.기타1),
+                toStr(settlementFiles.기타2),
+            ]);
+
+            await apiSubmitSettlement({
+                신청번호: settlementTarget['신청번호']!,
+                참가자명: user.projectName,
+                증빙_영수증: 영수증Str,
+                증빙_수령: 수령Str,
+                증빙_기타1: 기타1Str,
+                증빙_기타2: 기타2Str,
+                증빙_메모: settlementMemo.trim() || undefined,
+            });
+
+            setSettlementTarget(null);
+            setSelectedDetail(null);
+            await fetchMyRecords();
+        } catch (err: any) {
+            setSettlementError(err.message || '제출 중 오류가 발생했습니다. 다시 시도해주세요.');
+        } finally {
+            setIsSettlementSubmitting(false);
+        }
+    };
 
     const getCategoryBadge = (category?: string) => {
         let bg = 'bg-[#F5F5F5]', tx = 'text-[#616161]';
@@ -109,15 +169,36 @@ export default function StudentDashboard() {
         });
 
     const totalBudget = budgets.yubi + budgets.jaeryo + budgets.oiju + budgets.jigeup;
-    // 정산 완료만 "완료 금액"으로 집계
     const sumApproved = records
         .filter(r => r['상태'] === '정산 완료' || r['상태'] === '완료' || r['상태'] === '승인')
         .reduce((s, r) => s + (Number(r['신청금액']) || 0), 0);
-    // 반려·완료 제외한 나머지는 "처리 중"
     const sumPending = records
         .filter(r => r['상태'] !== '수정 필요' && r['상태'] !== '정산 반려' && r['상태'] !== '정산 완료' && r['상태'] !== '완료' && r['상태'] !== '승인')
         .reduce((s, r) => s + (Number(r['신청금액']) || 0), 0);
     const balance = totalBudget - (sumApproved + sumPending);
+
+    // 파일 입력 렌더러 (정산 신청 모달용)
+    const renderSettlementFileInput = (
+        label: string,
+        key: keyof typeof settlementFiles
+    ) => (
+        <div className="space-y-1.5">
+            <label className="flex items-center text-sm font-semibold text-neutral-700">
+                <UploadCloud className="w-4 h-4 mr-2 text-indigo-400" />
+                {label}
+                <span className="ml-1.5 text-xs font-normal text-neutral-400">(선택)</span>
+            </label>
+            <input
+                type="file"
+                disabled={isSettlementSubmitting}
+                onChange={e => setSettlementFiles(prev => ({ ...prev, [key]: e.target.files?.[0] || null }))}
+                className="w-full px-3 py-2 rounded-xl bg-neutral-50 border border-neutral-200 text-neutral-900 text-sm focus:ring-2 focus:ring-indigo-500 transition-all file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            />
+            {settlementFiles[key] && (
+                <p className="text-xs text-neutral-500 pl-1">선택됨: {settlementFiles[key]!.name}</p>
+            )}
+        </div>
+    );
 
     return (
         <div className="min-h-screen bg-neutral-50 py-10 px-4 sm:px-6 lg:px-8 font-sans">
@@ -236,10 +317,19 @@ export default function StudentDashboard() {
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 text-center">
-                                                <button onClick={() => setSelectedDetail(rec)}
-                                                    className="px-3 py-1.5 border border-indigo-200 rounded-lg text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition-colors">
-                                                    🔍 보기
-                                                </button>
+                                                <div className="inline-flex items-center gap-1.5">
+                                                    <button onClick={() => setSelectedDetail(rec)}
+                                                        className="px-3 py-1.5 border border-indigo-200 rounded-lg text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition-colors">
+                                                        🔍 보기
+                                                    </button>
+                                                    {/* 사전 승인 완료 상태에만 정산 신청 버튼 표시 */}
+                                                    {rec['상태'] === '사전 승인 완료' && (
+                                                        <button onClick={() => openSettlementModal(rec)}
+                                                            className="px-3 py-1.5 border border-emerald-200 rounded-lg text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors">
+                                                            📋 정산 신청
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </td>
                                         </tr>
                                     ))
@@ -326,17 +416,43 @@ export default function StudentDashboard() {
                                 return (
                                     <div className="flex justify-between py-1 border-b border-neutral-50">
                                         <span className="text-neutral-500">첨부파일</span>
-                                        <a
-                                            href={linkUrl}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="font-medium text-indigo-600 hover:text-indigo-800 underline max-w-[60%] text-right break-all"
-                                        >
+                                        <a href={linkUrl} target="_blank" rel="noopener noreferrer"
+                                            className="font-medium text-indigo-600 hover:text-indigo-800 underline max-w-[60%] text-right break-all">
                                             {linkText}
                                         </a>
                                     </div>
                                 );
                             })()}
+                            {/* 증빙 서류 (정산 신청 이후 표시) */}
+                            {(selectedDetail['증빙_영수증'] || selectedDetail['증빙_수령'] || selectedDetail['증빙_기타1'] || selectedDetail['증빙_기타2'] || selectedDetail['증빙_메모']) && (
+                                <div className="mt-2 pt-3 border-t border-neutral-100">
+                                    <p className="text-xs font-semibold text-neutral-500 mb-2">📎 제출된 증빙 서류</p>
+                                    {[
+                                        { label: '영수증', val: selectedDetail['증빙_영수증'] },
+                                        { label: '수령 증빙', val: selectedDetail['증빙_수령'] },
+                                        { label: '기타1', val: selectedDetail['증빙_기타1'] },
+                                        { label: '기타2', val: selectedDetail['증빙_기타2'] },
+                                    ].map(({ label, val }) => val ? (() => {
+                                        const si = val.indexOf('|||');
+                                        const txt = si !== -1 ? val.slice(0, si) : '보기';
+                                        const href = si !== -1 ? val.slice(si + 3) : val;
+                                        return (
+                                            <div key={label} className="flex justify-between py-1 border-b border-neutral-50">
+                                                <span className="text-neutral-500">{label}</span>
+                                                <a href={href} target="_blank" rel="noopener noreferrer"
+                                                    className="font-medium text-indigo-600 hover:text-indigo-800 underline max-w-[60%] text-right break-all">
+                                                    {txt}
+                                                </a>
+                                            </div>
+                                        );
+                                    })() : null)}
+                                    {selectedDetail['증빙_메모'] && (
+                                        <div className="mt-1 p-2 bg-neutral-50 rounded-lg text-xs text-neutral-600">
+                                            <span className="font-semibold">메모: </span>{selectedDetail['증빙_메모']}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                             {/* 반려 계열 상태일 때 사유 표시 */}
                             {(selectedDetail['상태'] === '수정 필요' || selectedDetail['상태'] === '정산 반려') && selectedDetail['반려사유'] && (
                                 <div className="mt-2 p-3 bg-red-50 border border-red-100 rounded-lg">
@@ -344,6 +460,111 @@ export default function StudentDashboard() {
                                     <span className="text-red-600">{selectedDetail['반려사유']}</span>
                                 </div>
                             )}
+                        </div>
+                        {/* 사전 승인 완료 상태일 때 상세 모달 하단에도 정산 신청 버튼 */}
+                        {selectedDetail['상태'] === '사전 승인 완료' && (
+                            <div className="px-6 py-4 border-t border-neutral-100 flex justify-end">
+                                <button
+                                    onClick={() => {
+                                        openSettlementModal(selectedDetail);
+                                        setSelectedDetail(null);
+                                    }}
+                                    className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 transition-colors shadow-sm"
+                                >
+                                    <Send className="w-4 h-4" />
+                                    정산 신청 (증빙 제출)
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* 정산 신청(증빙 제출) 모달 */}
+            {settlementTarget && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => !isSettlementSubmitting && setSettlementTarget(null)}>
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden" onClick={e => e.stopPropagation()}>
+                        {/* 헤더 */}
+                        <div className="bg-gradient-to-r from-emerald-600 to-teal-600 px-6 py-5 text-white">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h3 className="text-lg font-bold flex items-center gap-2">
+                                        <Send className="w-5 h-5" /> 정산 신청 (증빙 제출)
+                                    </h3>
+                                    <p className="text-emerald-100/80 text-xs mt-1">
+                                        신청번호: {settlementTarget['신청번호']} · {settlementTarget['비목']} · {(Number(settlementTarget['신청금액']) || 0).toLocaleString()}원
+                                    </p>
+                                </div>
+                                {!isSettlementSubmitting && (
+                                    <button onClick={() => setSettlementTarget(null)} className="text-white/60 hover:text-white text-xl leading-none">✕</button>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* 안내 문구 */}
+                        <div className="px-6 pt-4 pb-2">
+                            <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-xl text-xs text-emerald-800 leading-relaxed">
+                                거래·수령 후 증빙 서류를 업로드해 주세요. 각 항목은 선택사항이며, 메모만 입력해도 제출이 가능합니다.
+                            </div>
+                        </div>
+
+                        {/* 에러 메시지 */}
+                        {settlementError && (
+                            <div className="mx-6 mt-3 p-3 bg-red-50 border border-red-100 rounded-xl text-xs text-red-700 flex items-start gap-2">
+                                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                                {settlementError}
+                            </div>
+                        )}
+
+                        {/* 폼 내용 */}
+                        <div className="px-6 py-4 space-y-4 max-h-[50vh] overflow-y-auto">
+                            {renderSettlementFileInput('영수증', '영수증')}
+                            {renderSettlementFileInput('수령 증빙', '수령')}
+                            {renderSettlementFileInput('기타 서류 1', '기타1')}
+                            {renderSettlementFileInput('기타 서류 2', '기타2')}
+
+                            {/* 메모 */}
+                            <div className="space-y-1.5">
+                                <label className="text-sm font-semibold text-neutral-700">메모 <span className="text-xs font-normal text-neutral-400">(선택)</span></label>
+                                <textarea
+                                    value={settlementMemo}
+                                    onChange={e => setSettlementMemo(e.target.value)}
+                                    disabled={isSettlementSubmitting}
+                                    placeholder="증빙과 관련된 추가 설명이 있으면 입력해주세요."
+                                    className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-200 text-sm outline-none focus:ring-2 focus:ring-emerald-500 resize-y min-h-[80px] disabled:opacity-50"
+                                />
+                            </div>
+                        </div>
+
+                        {/* 하단 버튼 */}
+                        <div className="px-6 py-4 border-t border-neutral-100 flex justify-end gap-2">
+                            <button
+                                onClick={() => setSettlementTarget(null)}
+                                disabled={isSettlementSubmitting}
+                                className="px-4 py-2 text-sm font-bold text-neutral-700 bg-white border border-neutral-300 rounded-xl hover:bg-neutral-50 disabled:opacity-50 transition-colors"
+                            >
+                                취소
+                            </button>
+                            <button
+                                onClick={handleSettlementSubmit}
+                                disabled={isSettlementSubmitting}
+                                className="inline-flex items-center gap-2 px-5 py-2 text-sm font-bold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 disabled:opacity-50 transition-colors shadow-sm"
+                            >
+                                {isSettlementSubmitting ? (
+                                    <>
+                                        <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        업로드 및 제출 중...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Send className="w-4 h-4" />
+                                        정산 신청 제출
+                                    </>
+                                )}
+                            </button>
                         </div>
                     </div>
                 </div>
