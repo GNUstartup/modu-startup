@@ -58,6 +58,7 @@ export default function StudentDashboard() {
     // 수정 모달
     const [editTarget, setEditTarget] = useState<Application | null>(null);
     const [editFields, setEditFields] = useState<EditFields | null>(null);
+    const [editAttachFile, setEditAttachFile] = useState<File | null>(null); // 새로 교체할 첨부파일
     const [isEditSubmitting, setIsEditSubmitting] = useState(false);
     const [editError, setEditError] = useState('');
 
@@ -141,6 +142,7 @@ export default function StudentDashboard() {
     const openEditModal = (rec: Application) => {
         setEditTarget(rec);
         setEditFields(initEditFields(rec));
+        setEditAttachFile(null); // 새 파일 선택 초기화
         setEditError('');
     };
 
@@ -181,6 +183,13 @@ export default function StudentDashboard() {
         setIsEditSubmitting(true);
         setEditError('');
         try {
+            // 새 파일이 선택된 경우 업로드 후 첨부파일 칸 업데이트
+            if (editAttachFile) {
+                const { url, 원본파일명 } = await apiUploadFile(editAttachFile);
+                fields['첨부파일'] = `${원본파일명}|||${url}`;
+            }
+            // 새 파일을 선택하지 않으면 fields에 '첨부파일'을 넣지 않아 기존 값 유지
+
             await apiUpdateApplication({
                 신청번호: editTarget['신청번호']!,
                 참가자명: user.projectName,
@@ -719,6 +728,44 @@ export default function StudentDashboard() {
                             {/* 비목별 상세 칸 */}
                             <div className="grid grid-cols-2 gap-4">
                                 {renderEditDetailFields()}
+                            </div>
+
+                            {/* 첨부파일 확인 및 교체 */}
+                            <div className="space-y-2 pt-2 border-t border-neutral-100">
+                                <label className={labelCls}>첨부파일</label>
+                                {/* 현재 첨부파일 표시 */}
+                                {editTarget['첨부파일'] ? (() => {
+                                    const raw = editTarget['첨부파일']!;
+                                    const si = raw.indexOf('|||');
+                                    const name = si !== -1 ? raw.slice(0, si) : '첨부파일 보기';
+                                    const href = si !== -1 ? raw.slice(si + 3) : raw;
+                                    return (
+                                        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-indigo-50 border border-indigo-100 text-sm">
+                                            <span className="text-neutral-500 shrink-0">현재 첨부:</span>
+                                            <a href={href} target="_blank" rel="noopener noreferrer"
+                                                className="font-medium text-indigo-600 hover:text-indigo-800 underline truncate">
+                                                {name}
+                                            </a>
+                                        </div>
+                                    );
+                                })() : (
+                                    <div className="px-3 py-2 rounded-xl bg-neutral-50 border border-neutral-200 text-sm text-neutral-400">
+                                        첨부파일 없음
+                                    </div>
+                                )}
+                                {/* 파일 교체 입력 */}
+                                <div className="space-y-1">
+                                    <p className="text-xs text-neutral-500">새 파일을 선택하면 교체됩니다. 선택하지 않으면 기존 파일이 유지됩니다.</p>
+                                    <input
+                                        type="file"
+                                        disabled={isEditSubmitting}
+                                        onChange={e => setEditAttachFile(e.target.files?.[0] || null)}
+                                        className="w-full px-3 py-2 rounded-xl bg-neutral-50 border border-neutral-200 text-sm focus:ring-2 focus:ring-amber-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100 disabled:opacity-50"
+                                    />
+                                    {editAttachFile && (
+                                        <p className="text-xs text-amber-700 font-medium pl-1">선택됨 (교체 예정): {editAttachFile.name}</p>
+                                    )}
+                                </div>
                             </div>
                         </div>
 
