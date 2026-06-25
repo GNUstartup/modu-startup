@@ -132,7 +132,7 @@ export async function apiCreateApplication(application: Application): Promise<st
   const toInsert = {
     ...application,
     신청번호: newNumber,
-    상태: '담당자 확인 전',
+    상태: '담당자 검토 대기 중',
     신청일시: new Date().toISOString(),
   };
 

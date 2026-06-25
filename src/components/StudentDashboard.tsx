@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { RefreshCw, CheckCircle2, FileText, AlertCircle, Clock, XCircle, ArrowDownUp } from 'lucide-react';
+import { RefreshCw, CheckCircle2, FileText, AlertCircle, Clock, XCircle, ArrowDownUp, Info } from 'lucide-react';
 import { apiGetApplications } from '../api';
 import type { Application } from '../api';
+import { STATUS_INFO } from '../statusInfo';
 
 export default function StudentDashboard() {
     const { user } = useAuth();
@@ -10,6 +11,9 @@ export default function StudentDashboard() {
     const [isLoading, setIsLoading] = useState(true);
     const [errorMsg, setErrorMsg] = useState('');
     const [selectedDetail, setSelectedDetail] = useState<Application | null>(null);
+
+    // 상태 설명 팝업
+    const [statusPopup, setStatusPopup] = useState<string | null>(null);
 
     const budgets = {
         yubi: user?.budgetYubi || 0,
@@ -57,16 +61,22 @@ export default function StudentDashboard() {
     const getStatusBadge = (status?: string) => {
         const base = "inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold";
         switch (status) {
-            case '완료':
-            case '승인':
-                return <span className={`${base} bg-[#E0F2F1] text-[#00796B]`}><CheckCircle2 className="w-3.5 h-3.5 mr-1" /> 완료</span>;
-            case '반려':
-                return <span className={`${base} bg-[#FFEBEE] text-[#C62828]`}><XCircle className="w-3.5 h-3.5 mr-1" /> 반려됨</span>;
-            case '처리 중':
-            case '검토중':
-                return <span className={`${base} bg-[#F3E5F5] text-[#7B1FA2]`}><Clock className="w-3.5 h-3.5 mr-1" /> 처리 중</span>;
+            case '담당자 검토 대기 중':
+                return <span className={`${base} bg-[#F5F5F5] text-[#616161]`}><Clock className="w-3.5 h-3.5 mr-1" /> 담당자 검토 대기 중</span>;
+            case '수정 필요':
+                return <span className={`${base} bg-[#FFEBEE] text-[#C62828]`}><XCircle className="w-3.5 h-3.5 mr-1" /> 수정 필요</span>;
+            case '사전 승인 완료':
+                return <span className={`${base} bg-[#E3F2FD] text-[#1565C0]`}><CheckCircle2 className="w-3.5 h-3.5 mr-1" /> 사전 승인 완료</span>;
+            case '정산 신청':
+                return <span className={`${base} bg-[#EDE7F6] text-[#6A1B9A]`}><FileText className="w-3.5 h-3.5 mr-1" /> 정산 신청</span>;
+            case '정산 반려':
+                return <span className={`${base} bg-[#FFEBEE] text-[#C62828]`}><XCircle className="w-3.5 h-3.5 mr-1" /> 정산 반려</span>;
+            case '정산 중':
+                return <span className={`${base} bg-[#FFF3E0] text-[#E65100]`}><Clock className="w-3.5 h-3.5 mr-1" /> 정산 중</span>;
+            case '정산 완료':
+                return <span className={`${base} bg-[#E0F2F1] text-[#00796B]`}><CheckCircle2 className="w-3.5 h-3.5 mr-1" /> 정산 완료</span>;
             default:
-                return <span className={`${base} bg-[#F5F5F5] text-[#616161]`}><Clock className="w-3.5 h-3.5 mr-1" /> {status || '담당자 확인 전'}</span>;
+                return <span className={`${base} bg-[#F5F5F5] text-[#616161]`}><Clock className="w-3.5 h-3.5 mr-1" /> {status || '담당자 검토 대기 중'}</span>;
         }
     };
 
@@ -85,9 +95,9 @@ export default function StudentDashboard() {
 
     const uniqueCategories = Array.from(new Set(records.map(r => r['비목'] || ''))).filter(Boolean).sort();
 
-    // 비목별 사용액 (반려 제외)
+    // 비목별 사용액 (수정 필요·정산 반려 제외)
     const sumBy = (cat: string) => records
-        .filter(r => r['비목'] === cat && r['상태'] !== '반려')
+        .filter(r => r['비목'] === cat && r['상태'] !== '수정 필요' && r['상태'] !== '정산 반려')
         .reduce((s, r) => s + (Number(r['신청금액']) || 0), 0);
     const usedYubi = sumBy('여비'), usedJaeryo = sumBy('재료비'), usedOiju = sumBy('외주용역비'), usedJigeup = sumBy('지급수수료');
 
@@ -99,8 +109,14 @@ export default function StudentDashboard() {
         });
 
     const totalBudget = budgets.yubi + budgets.jaeryo + budgets.oiju + budgets.jigeup;
-    const sumApproved = records.filter(r => r['상태'] === '완료' || r['상태'] === '승인').reduce((s, r) => s + (Number(r['신청금액']) || 0), 0);
-    const sumPending = records.filter(r => r['상태'] !== '반려' && r['상태'] !== '완료' && r['상태'] !== '승인').reduce((s, r) => s + (Number(r['신청금액']) || 0), 0);
+    // 정산 완료만 "완료 금액"으로 집계
+    const sumApproved = records
+        .filter(r => r['상태'] === '정산 완료' || r['상태'] === '완료' || r['상태'] === '승인')
+        .reduce((s, r) => s + (Number(r['신청금액']) || 0), 0);
+    // 반려·완료 제외한 나머지는 "처리 중"
+    const sumPending = records
+        .filter(r => r['상태'] !== '수정 필요' && r['상태'] !== '정산 반려' && r['상태'] !== '정산 완료' && r['상태'] !== '완료' && r['상태'] !== '승인')
+        .reduce((s, r) => s + (Number(r['신청금액']) || 0), 0);
     const balance = totalBudget - (sumApproved + sumPending);
 
     return (
@@ -130,7 +146,7 @@ export default function StudentDashboard() {
                 {/* KPI 카드 */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-neutral-200">
-                        <h3 className="text-sm font-semibold text-neutral-500 mb-2">완료 금액 합계</h3>
+                        <h3 className="text-sm font-semibold text-neutral-500 mb-2">정산 완료 금액</h3>
                         <div className="text-blue-600" style={{ fontSize: '24px', fontWeight: 700 }}>{sumApproved.toLocaleString()} <span style={{ fontSize: '16px', fontWeight: 500 }}>원</span></div>
                     </div>
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-neutral-200">
@@ -205,7 +221,20 @@ export default function StudentDashboard() {
                                                 <span className="text-sm font-bold text-neutral-900">{(Number(rec['신청금액']) || 0).toLocaleString()}</span>
                                                 <span className="text-xs text-neutral-500 ml-1">원</span>
                                             </td>
-                                            <td className="px-6 py-4 text-center">{getStatusBadge(rec['상태'])}</td>
+                                            <td className="px-6 py-4 text-center">
+                                                <div className="inline-flex items-center gap-1">
+                                                    {getStatusBadge(rec['상태'])}
+                                                    {STATUS_INFO[rec['상태'] || ''] && (
+                                                        <button
+                                                            onClick={() => setStatusPopup(rec['상태'] || '')}
+                                                            className="text-neutral-400 hover:text-indigo-500 transition-colors"
+                                                            title="상태 설명 보기"
+                                                        >
+                                                            <Info className="w-3.5 h-3.5" />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </td>
                                             <td className="px-6 py-4 text-center">
                                                 <button onClick={() => setSelectedDetail(rec)}
                                                     className="px-3 py-1.5 border border-indigo-200 rounded-lg text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition-colors">
@@ -221,6 +250,24 @@ export default function StudentDashboard() {
                 </div>
             </div>
 
+            {/* 상태 설명 팝업 */}
+            {statusPopup && (
+                <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setStatusPopup(null)}>
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden" onClick={e => e.stopPropagation()}>
+                        <div className="px-6 py-4 border-b border-neutral-100 flex items-center justify-between">
+                            <h3 className="text-base font-bold text-neutral-900 flex items-center gap-2">
+                                <Info className="w-4 h-4 text-indigo-500" />
+                                '{statusPopup}'란?
+                            </h3>
+                            <button onClick={() => setStatusPopup(null)} className="text-neutral-400 hover:text-neutral-600">✕</button>
+                        </div>
+                        <div className="px-6 py-5">
+                            <p className="text-sm text-neutral-700 leading-relaxed">{STATUS_INFO[statusPopup]}</p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* 상세 보기 모달 */}
             {selectedDetail && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setSelectedDetail(null)}>
@@ -232,7 +279,22 @@ export default function StudentDashboard() {
                         <div className="px-6 py-5 space-y-3 max-h-[60vh] overflow-y-auto text-sm">
                             <DetailRow label="비목" value={selectedDetail['비목']} />
                             <DetailRow label="신청금액" value={`${(Number(selectedDetail['신청금액']) || 0).toLocaleString()}원`} />
-                            <DetailRow label="상태" value={selectedDetail['상태']} />
+                            {/* 상태 행: 뱃지 + 설명 팝업 버튼 */}
+                            <div className="flex justify-between py-1 border-b border-neutral-50">
+                                <span className="text-neutral-500">상태</span>
+                                <div className="flex items-center gap-1.5">
+                                    {getStatusBadge(selectedDetail['상태'])}
+                                    {STATUS_INFO[selectedDetail['상태'] || ''] && (
+                                        <button
+                                            onClick={() => setStatusPopup(selectedDetail['상태'] || '')}
+                                            className="text-neutral-400 hover:text-indigo-500 transition-colors"
+                                            title="상태 설명 보기"
+                                        >
+                                            <Info className="w-3.5 h-3.5" />
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
                             {selectedDetail['비목'] === '여비' && <>
                                 <DetailRow label="출발지" value={selectedDetail['출발지']} />
                                 <DetailRow label="도착지" value={selectedDetail['도착지']} />
@@ -275,7 +337,8 @@ export default function StudentDashboard() {
                                     </div>
                                 );
                             })()}
-                            {selectedDetail['상태'] === '반려' && selectedDetail['반려사유'] && (
+                            {/* 반려 계열 상태일 때 사유 표시 */}
+                            {(selectedDetail['상태'] === '수정 필요' || selectedDetail['상태'] === '정산 반려') && selectedDetail['반려사유'] && (
                                 <div className="mt-2 p-3 bg-red-50 border border-red-100 rounded-lg">
                                     <span className="font-semibold text-red-700">반려 사유: </span>
                                     <span className="text-red-600">{selectedDetail['반려사유']}</span>
