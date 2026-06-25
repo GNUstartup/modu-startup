@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Tag, ChevronDown, CheckCircle2, Navigation, UploadCloud, ShoppingCart, Briefcase, UserCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { apiGetApplications, apiCreateApplication } from '../api';
+import { apiGetApplications, apiCreateApplication, apiUploadFile } from '../api';
 import type { Application } from '../api';
 
 function numberToKorean(number: number): string {
@@ -46,6 +46,7 @@ export default function ExpenseRequestForm() {
     const { user } = useAuth();
     const navigate = useNavigate();
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
     const [errorMsg, setErrorMsg] = useState('');
     const [categoryUsed, setCategoryUsed] = useState<Record<string, number>>({
@@ -156,7 +157,7 @@ export default function ExpenseRequestForm() {
 
         const numericAmount = Number(amountStr.replace(/,/g, ''));
 
-        // 새 신청 한 건을 구성 (구글 시트 '신청내역' 칸 이름에 맞춤)
+        // 새 신청 한 건을 구성
         const application: Application = {
             참가자명: projectName,
             비목: expenseCategory,
@@ -185,7 +186,23 @@ export default function ExpenseRequestForm() {
         }
 
         try {
-            // 실제 저장이 성공했는지 확인한 뒤에 완료 표시 (저장 실패를 숨기지 않음)
+            // 파일이 선택된 경우 먼저 업로드 후 URL을 첨부파일 칸에 저장
+            if (files.file1) {
+                setIsUploading(true);
+                try {
+                    const fileUrl = await apiUploadFile(files.file1);
+                    application['첨부파일'] = fileUrl;
+                } catch (uploadErr: any) {
+                    setErrorMsg('파일 업로드 중 오류가 발생했습니다: ' + (uploadErr.message || '다시 시도해주세요.'));
+                    setIsUploading(false);
+                    setIsSubmitting(false);
+                    return;
+                } finally {
+                    setIsUploading(false);
+                }
+            }
+
+            // 신청서 저장
             await apiCreateApplication(application);
 
             setIsSubmitting(false);
@@ -238,14 +255,24 @@ export default function ExpenseRequestForm() {
         <div className="space-y-2">
             <label className="flex items-center text-sm font-semibold text-neutral-700 min-h-[20px]">
                 <UploadCloud className="w-4 h-4 mr-2 text-indigo-500" />
-                {labelStr} <span className="ml-2 text-xs font-normal text-neutral-400">(첨부 기능 준비 중)</span>
+                {labelStr} <span className="ml-2 text-xs font-normal text-neutral-400">(선택사항)</span>
             </label>
             <input
                 type="file"
+                disabled={isUploading}
                 onChange={e => handleFileChange(fileKey, e.target.files?.[0] || null)}
-                className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-200 shadow-sm text-neutral-900 focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all duration-200 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-200 shadow-sm text-neutral-900 focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all duration-200 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed"
             />
-            {files[fileKey] && (
+            {isUploading && (
+                <p className="text-xs text-indigo-500 flex items-center gap-1">
+                    <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    파일 업로드 중...
+                </p>
+            )}
+            {!isUploading && files[fileKey] && (
                 <p className="text-xs text-neutral-500">선택됨: {files[fileKey]?.name}</p>
             )}
         </div>
@@ -465,16 +492,16 @@ export default function ExpenseRequestForm() {
                             </p>
                             <button
                                 type="submit"
-                                disabled={isSubmitting || isSuccess || validateForm() !== null || !!isExceeded}
+                                disabled={isSubmitting || isUploading || isSuccess || validateForm() !== null || !!isExceeded}
                                 className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-xl shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                             >
-                                {isSubmitting ? (
+                                {(isSubmitting || isUploading) ? (
                                     <span className="flex items-center">
                                         <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                         </svg>
-                                        처리 중...
+                                        {isUploading ? '파일 업로드 중...' : '처리 중...'}
                                     </span>
                                 ) : isSuccess ? (
                                     <span className="flex items-center text-green-100">

@@ -259,3 +259,22 @@ export async function apiGetParticipants(role: string): Promise<Participant[]> {
   list.forEach((p: any) => { delete p['비밀번호']; });
   return list;
 }
+
+// ===== 첨부파일 업로드 (Supabase Storage) =====
+// 'attachments' 버킷에 파일을 올리고 공개 URL을 반환합니다.
+export async function apiUploadFile(file: File): Promise<string> {
+  const fileName = `${Date.now()}_${file.name}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('attachments')
+    .upload(fileName, file);
+
+  if (uploadError) throw new Error('파일 업로드 실패: ' + uploadError.message);
+
+  const { data } = supabase.storage
+    .from('attachments')
+    .getPublicUrl(fileName);
+
+  if (!data?.publicUrl) throw new Error('파일 URL을 가져오지 못했습니다.');
+  return data.publicUrl;
+}

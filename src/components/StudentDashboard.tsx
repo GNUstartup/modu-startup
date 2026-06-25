@@ -256,6 +256,19 @@ export default function StudentDashboard() {
                                 <DetailRow label="멘토링시간" value={selectedDetail['멘토링시간']} />
                                 <DetailRow label="멘토링주제" value={selectedDetail['멘토링주제']} />
                             </>}
+                            {selectedDetail['첨부파일'] && (
+                                <div className="flex justify-between py-1 border-b border-neutral-50">
+                                    <span className="text-neutral-500">첨부파일</span>
+                                    <a
+                                        href={selectedDetail['첨부파일']}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="font-medium text-indigo-600 hover:text-indigo-800 underline"
+                                    >
+                                        첨부파일 보기
+                                    </a>
+                                </div>
+                            )}
                             {selectedDetail['상태'] === '반려' && selectedDetail['반려사유'] && (
                                 <div className="mt-2 p-3 bg-red-50 border border-red-100 rounded-lg">
                                     <span className="font-semibold text-red-700">반려 사유: </span>
