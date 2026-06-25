@@ -190,8 +190,9 @@ export default function ExpenseRequestForm() {
             if (files.file1) {
                 setIsUploading(true);
                 try {
-                    const fileUrl = await apiUploadFile(files.file1);
-                    application['첨부파일'] = fileUrl;
+                    const { url, 원본파일명 } = await apiUploadFile(files.file1);
+                    // "원본파일명|||url" 형태로 저장 (칸 하나에 이름+주소를 함께 보관)
+                    application['첨부파일'] = `${원본파일명}|||${url}`;
                 } catch (uploadErr: any) {
                     setErrorMsg('파일 업로드 중 오류가 발생했습니다: ' + (uploadErr.message || '다시 시도해주세요.'));
                     setIsUploading(false);

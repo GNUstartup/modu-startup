@@ -261,20 +261,30 @@ export async function apiGetParticipants(role: string): Promise<Participant[]> {
 }
 
 // ===== 첨부파일 업로드 (Supabase Storage) =====
-// 'attachments' 버킷에 파일을 올리고 공개 URL을 반환합니다.
-export async function apiUploadFile(file: File): Promise<string> {
-  const fileName = `${Date.now()}_${file.name}`;
+// 'attachments' 버킷에 파일을 올리고 { url, 원본파일명 }을 반환합니다.
+// Storage 키는 한글/특수문자를 제거한 안전한 이름으로만 만듭니다.
+export async function apiUploadFile(file: File): Promise<{ url: string; 원본파일명: string }> {
+  // 원본 확장자 추출 (없으면 빈 문자열)
+  const dotIndex = file.name.lastIndexOf('.');
+  const ext = dotIndex !== -1 ? file.name.slice(dotIndex) : '';
+
+  // 랜덤 영숫자 6자리 생성
+  const rand = Math.random().toString(36).slice(2, 8);
+
+  // Storage에 저장할 안전한 키: 타임스탬프_랜덤.확장자
+  const safeKey = `${Date.now()}_${rand}${ext}`;
 
   const { error: uploadError } = await supabase.storage
     .from('attachments')
-    .upload(fileName, file);
+    .upload(safeKey, file);
 
   if (uploadError) throw new Error('파일 업로드 실패: ' + uploadError.message);
 
   const { data } = supabase.storage
     .from('attachments')
-    .getPublicUrl(fileName);
+    .getPublicUrl(safeKey);
 
   if (!data?.publicUrl) throw new Error('파일 URL을 가져오지 못했습니다.');
-  return data.publicUrl;
+
+  return { url: data.publicUrl, 원본파일명: file.name };
 }

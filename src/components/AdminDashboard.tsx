@@ -251,19 +251,25 @@ export default function AdminDashboard() {
                                 <DetailRow label="멘토링시간" value={selectedDetail['멘토링시간']} />
                                 <DetailRow label="멘토링주제" value={selectedDetail['멘토링주제']} />
                             </>}
-                            {selectedDetail['첨부파일'] && (
-                                <div className="flex justify-between py-1 border-b border-neutral-50">
-                                    <span className="text-neutral-500">첨부파일</span>
-                                    <a
-                                        href={selectedDetail['첨부파일']}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="font-medium text-indigo-600 hover:text-indigo-800 underline"
-                                    >
-                                        첨부파일 보기
-                                    </a>
-                                </div>
-                            )}
+                            {selectedDetail['첨부파일'] && (() => {
+                                const raw: string = selectedDetail['첨부파일'];
+                                const sepIdx = raw.indexOf('|||');
+                                const linkText = sepIdx !== -1 ? raw.slice(0, sepIdx) : '첨부파일 보기';
+                                const linkUrl  = sepIdx !== -1 ? raw.slice(sepIdx + 3) : raw;
+                                return (
+                                    <div className="flex justify-between py-1 border-b border-neutral-50">
+                                        <span className="text-neutral-500">첨부파일</span>
+                                        <a
+                                            href={linkUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="font-medium text-indigo-600 hover:text-indigo-800 underline max-w-[60%] text-right break-all"
+                                        >
+                                            {linkText}
+                                        </a>
+                                    </div>
+                                );
+                            })()}
                             {selectedDetail['처리이력'] && (
                                 <div className="mt-2 p-3 bg-neutral-50 border border-neutral-100 rounded-lg whitespace-pre-line text-xs text-neutral-600">
                                     <span className="font-semibold text-neutral-700">처리이력:</span><br />{selectedDetail['처리이력']}
