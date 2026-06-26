@@ -23,6 +23,25 @@ export default function AdminDashboard() {
     // 상태 설명 팝업
     const [statusPopup, setStatusPopup] = useState<string | null>(null);
 
+    // 상태 수동 조정 — 드롭다운 선택값
+    const ALL_STATUSES = [
+        '담당자 검토 대기 중',
+        '수정 필요',
+        '사전 승인 완료',
+        '정산 신청',
+        '정산 반려',
+        '정산 중',
+        '정산 완료',
+    ] as const;
+    const [manualStatus, setManualStatus] = useState<string>('');
+
+    // 상세 모달이 열릴 때마다 현재 상태를 드롭다운 기본값으로 설정
+    useEffect(() => {
+        if (selectedDetail) {
+            setManualStatus(selectedDetail['상태'] || '담당자 검토 대기 중');
+        }
+    }, [selectedDetail]);
+
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('전체 비목');
     const [selectedStatus, setSelectedStatus] = useState('전체 상태');
@@ -114,6 +133,34 @@ export default function AdminDashboard() {
             setSelectedDetail(null);
         } catch (err: any) {
             alert(err.message || '처리 중 오류가 발생했습니다.');
+        } finally {
+            setProcessing(false);
+        }
+    };
+
+    // ── 상태 수동 조정 ──────────────────────────────────────────────────────
+    const handleManualStatusChange = async () => {
+        if (!selectedDetail?.['신청번호']) return;
+        const currentStatus = (selectedDetail['상태'] || '').trim();
+        const nextStatus = manualStatus.trim();
+        if (currentStatus === nextStatus) {
+            alert('현재 상태와 동일한 상태입니다. 다른 상태를 선택해주세요.');
+            return;
+        }
+        const confirmed = window.confirm(
+            `'${currentStatus}' → '${nextStatus}'(으)로 변경하시겠습니까?`
+        );
+        if (!confirmed) return;
+        setProcessing(true);
+        try {
+            await apiUpdateStatus({
+                신청번호: selectedDetail['신청번호'],
+                상태: nextStatus,
+                처리자: user?.projectName || 'admin',
+            });
+            await fetchAll();
+        } catch (err: any) {
+            alert(err.message || '상태 변경 중 오류가 발생했습니다.');
         } finally {
             setProcessing(false);
         }
@@ -430,6 +477,35 @@ export default function AdminDashboard() {
                                     <span className="text-red-600">{selectedDetail['반려사유']}</span>
                                 </div>
                             )}
+
+                            {/* ── 상태 수동 조정 ── */}
+                            <div className="mt-4 pt-4 border-t-2 border-dashed border-amber-200">
+                                <p className="text-xs font-bold text-amber-700 mb-2 flex items-center gap-1.5">
+                                    <AlertCircle className="w-3.5 h-3.5" />
+                                    상태 수동 조정 (관리자 전용)
+                                </p>
+                                <div className="flex items-center gap-2">
+                                    <select
+                                        id="manual-status-select"
+                                        value={manualStatus}
+                                        onChange={e => setManualStatus(e.target.value)}
+                                        disabled={processing}
+                                        className="flex-1 px-3 py-2 rounded-xl bg-amber-50 border border-amber-200 text-sm outline-none focus:ring-2 focus:ring-amber-400 text-neutral-800 disabled:opacity-50 cursor-pointer"
+                                    >
+                                        {ALL_STATUSES.map(s => (
+                                            <option key={s} value={s}>{s}</option>
+                                        ))}
+                                    </select>
+                                    <button
+                                        id="manual-status-change-btn"
+                                        onClick={handleManualStatusChange}
+                                        disabled={processing}
+                                        className="px-4 py-2 text-sm font-bold text-amber-800 bg-amber-100 border border-amber-300 rounded-xl hover:bg-amber-200 disabled:opacity-50 transition-colors whitespace-nowrap"
+                                    >
+                                        {processing ? '처리 중...' : '상태 변경'}
+                                    </button>
+                                </div>
+                            </div>
                         </div>
 
                         {/* ── 하단 버튼: 상태별 if-else 분기 (trim으로 공백 방어) ── */}
