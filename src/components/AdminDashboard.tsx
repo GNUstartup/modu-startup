@@ -34,6 +34,10 @@ export default function AdminDashboard() {
         '정산 완료',
     ] as const;
     const [manualStatus, setManualStatus] = useState<string>('');
+    // 커스텀 확인 모달: 변경할 상태 정보 (null이면 닫힘)
+    const [manualConfirm, setManualConfirm] = useState<{ from: string; to: string } | null>(null);
+    // 커스텀 안내 모달: 동일 상태 선택 시 메시지 (null이면 닫힘)
+    const [manualInfoMsg, setManualInfoMsg] = useState<string | null>(null);
 
     // 상세 모달이 열릴 때마다 현재 상태를 드롭다운 기본값으로 설정
     useEffect(() => {
@@ -139,28 +143,33 @@ export default function AdminDashboard() {
     };
 
     // ── 상태 수동 조정 ──────────────────────────────────────────────────────
-    const handleManualStatusChange = async () => {
+    // 「상태 변경」 버튼 클릭 → 확인 모달 열기 (또는 동일 상태 안내)
+    const handleManualStatusChange = () => {
         if (!selectedDetail?.['신청번호']) return;
         const currentStatus = (selectedDetail['상태'] || '').trim();
         const nextStatus = manualStatus.trim();
         if (currentStatus === nextStatus) {
-            alert('현재 상태와 동일한 상태입니다. 다른 상태를 선택해주세요.');
+            setManualInfoMsg('현재 상태와 동일한 상태입니다. 다른 상태를 선택해주세요.');
             return;
         }
-        const confirmed = window.confirm(
-            `'${currentStatus}' → '${nextStatus}'(으)로 변경하시겠습니까?`
-        );
-        if (!confirmed) return;
+        // 확인 모달 열기
+        setManualConfirm({ from: currentStatus, to: nextStatus });
+    };
+
+    // 확인 모달에서 「변경」 클릭 → 실제 API 호출
+    const doManualStatusChange = async () => {
+        if (!selectedDetail?.['신청번호'] || !manualConfirm) return;
+        setManualConfirm(null);
         setProcessing(true);
         try {
             await apiUpdateStatus({
                 신청번호: selectedDetail['신청번호'],
-                상태: nextStatus,
+                상태: manualConfirm.to,
                 처리자: user?.projectName || 'admin',
             });
             await fetchAll();
         } catch (err: any) {
-            alert(err.message || '상태 변경 중 오류가 발생했습니다.');
+            setManualInfoMsg(err.message || '상태 변경 중 오류가 발생했습니다.');
         } finally {
             setProcessing(false);
         }
@@ -581,6 +590,68 @@ export default function AdminDashboard() {
                             <button onClick={handleReject} disabled={processing}
                                 className="px-5 py-2 text-sm font-bold text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors">
                                 {processing ? '처리 중...' : (rejectMode === '1차' ? '수정 필요 확정' : '정산 반려 확정')}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ── 상태 수동 조정: 변경 확인 모달 (z-[80], 상세 모달보다 위) ── */}
+            {manualConfirm && (
+                <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+                    onClick={() => setManualConfirm(null)}>
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden"
+                        onClick={e => e.stopPropagation()}>
+                        <div className="px-6 py-4 border-b border-neutral-100 flex items-center justify-between">
+                            <h3 className="text-base font-bold text-neutral-900 flex items-center gap-2">
+                                <AlertCircle className="w-4 h-4 text-amber-500" />
+                                상태 변경 확인
+                            </h3>
+                            <button onClick={() => setManualConfirm(null)} className="text-neutral-400 hover:text-neutral-600">✕</button>
+                        </div>
+                        <div className="px-6 py-5">
+                            <p className="text-sm text-neutral-700 leading-relaxed">
+                                <span className="font-semibold text-neutral-900">'{manualConfirm.from}'</span>
+                                <span className="mx-2 text-neutral-400">→</span>
+                                <span className="font-semibold text-amber-700">'{manualConfirm.to}'</span>
+                                <span className="text-neutral-600">(으)로 변경하시겠습니까?</span>
+                            </p>
+                            <p className="mt-2 text-xs text-neutral-400">변경 후 처리이력에 자동으로 기록됩니다.</p>
+                        </div>
+                        <div className="px-6 py-4 border-t border-neutral-100 flex justify-end gap-2">
+                            <button onClick={() => setManualConfirm(null)} disabled={processing}
+                                className="px-4 py-2 text-sm font-bold text-neutral-700 bg-white border border-neutral-300 rounded-lg hover:bg-neutral-50 disabled:opacity-50 transition-colors">
+                                취소
+                            </button>
+                            <button onClick={doManualStatusChange} disabled={processing}
+                                className="px-5 py-2 text-sm font-bold text-white bg-amber-500 rounded-lg hover:bg-amber-600 disabled:opacity-50 transition-colors">
+                                {processing ? '처리 중...' : '변경'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ── 상태 수동 조정: 동일 상태 또는 오류 안내 모달 (z-[80]) ── */}
+            {manualInfoMsg && (
+                <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+                    onClick={() => setManualInfoMsg(null)}>
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden"
+                        onClick={e => e.stopPropagation()}>
+                        <div className="px-6 py-4 border-b border-neutral-100 flex items-center justify-between">
+                            <h3 className="text-base font-bold text-neutral-900 flex items-center gap-2">
+                                <Info className="w-4 h-4 text-indigo-500" />
+                                안내
+                            </h3>
+                            <button onClick={() => setManualInfoMsg(null)} className="text-neutral-400 hover:text-neutral-600">✕</button>
+                        </div>
+                        <div className="px-6 py-5">
+                            <p className="text-sm text-neutral-700 leading-relaxed">{manualInfoMsg}</p>
+                        </div>
+                        <div className="px-6 py-4 border-t border-neutral-100 flex justify-end">
+                            <button onClick={() => setManualInfoMsg(null)}
+                                className="px-5 py-2 text-sm font-bold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors">
+                                확인
                             </button>
                         </div>
                     </div>
