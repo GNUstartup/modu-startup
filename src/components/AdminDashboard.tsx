@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { RefreshCw, CheckCircle2, FileText, AlertCircle, Clock, XCircle, Search, Info, Banknote, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
+import { RefreshCw, CheckCircle2, FileText, AlertCircle, Clock, XCircle, Info, Banknote, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { apiGetApplications, apiUpdateStatus, apiGetParticipants } from '../api';
 import type { Application, Participant } from '../api';
@@ -85,7 +85,8 @@ export default function AdminDashboard() {
                 new Date(b['신청일시'] || 0).getTime() - new Date(a['신청일시'] || 0).getTime()
             );
             setRecords(base);
-            setParticipants(pList);
+            // 역할이 '참가자'인 사람만 필터 드롭다운에 표시
+            setParticipants(pList.filter(p => p['역할'] !== '관리자'));
             // 상세 모달이 열려 있으면 최신 데이터로 동기화
             setSelectedDetail(prev =>
                 prev ? (base.find(r => r['신청번호'] === prev['신청번호']) ?? prev) : null
@@ -322,23 +323,10 @@ export default function AdminDashboard() {
                             관리자 조치 필요 <span className="font-semibold text-indigo-600">{pendingCount}건</span>이 있습니다.
                         </p>
                     </div>
-                    <div className="mt-4 sm:mt-0 flex items-center gap-2">
-                        <button
-                            onClick={() => { setShowTodo(v => !v); setFilterStatus(''); setFilterParticipant(''); setFilterCategory(''); }}
-                            className={`inline-flex items-center px-4 py-2 rounded-xl shadow-sm text-sm font-bold border transition-colors ${
-                                showTodo
-                                    ? 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700'
-                                    : 'bg-white text-indigo-700 border-indigo-200 hover:bg-indigo-50'
-                            }`}
-                        >
-                            <AlertCircle className="w-4 h-4 mr-1.5" />
-                            처리할 업무 ({pendingCount})
-                        </button>
-                        <button onClick={fetchAll} disabled={isLoading}
-                            className="inline-flex items-center px-4 py-2 border border-neutral-200 rounded-xl shadow-sm text-sm font-medium text-neutral-700 bg-white hover:bg-neutral-50 disabled:opacity-50 transition-colors">
-                            <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin text-indigo-500' : 'text-neutral-500'}`} /> 새로고침
-                        </button>
-                    </div>
+                    <button onClick={fetchAll} disabled={isLoading}
+                        className="mt-4 sm:mt-0 inline-flex items-center px-4 py-2 border border-neutral-200 rounded-xl shadow-sm text-sm font-medium text-neutral-700 bg-white hover:bg-neutral-50 disabled:opacity-50 transition-colors">
+                        <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin text-indigo-500' : 'text-neutral-500'}`} /> 새로고침
+                    </button>
                 </div>
 
                 {errorMsg && (
@@ -347,41 +335,25 @@ export default function AdminDashboard() {
                     </div>
                 )}
 
-                {/* 필터 바 */}
+                {/* 툴바: 처리할 업무 버튼 + 필터 초기화 */}
                 <div className="bg-white px-4 py-3 rounded-2xl shadow-sm border border-neutral-200 flex flex-wrap items-center gap-3">
-                    {/* 참가자명 드롭다운 */}
-                    <div className="relative min-w-[150px]">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 pointer-events-none" />
-                        <select
-                            value={filterParticipant}
-                            onChange={e => { setFilterParticipant(e.target.value); setShowTodo(false); }}
-                            className="w-full pl-9 pr-4 py-2 rounded-xl bg-neutral-50 border border-neutral-200 text-sm outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer appearance-none"
-                        >
-                            <option value="">전체 참가자</option>
-                            {participants.map(p => (
-                                <option key={p['참가자명']} value={p['참가자명']}>{p['참가자명']}</option>
-                            ))}
-                        </select>
-                    </div>
-                    {/* 비목 드롭다운 */}
-                    <select
-                        value={filterCategory}
-                        onChange={e => { setFilterCategory(e.target.value); setShowTodo(false); }}
-                        className="px-3 py-2 rounded-xl bg-neutral-50 border border-neutral-200 text-sm outline-none cursor-pointer"
+                    <button
+                        onClick={() => { setShowTodo(v => !v); setFilterStatus(''); setFilterParticipant(''); setFilterCategory(''); }}
+                        className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold border transition-all shadow-sm ${
+                            showTodo
+                                ? 'bg-orange-500 text-white border-orange-500 hover:bg-orange-600 shadow-orange-200'
+                                : pendingCount > 0
+                                    ? 'bg-orange-50 text-orange-700 border-orange-300 hover:bg-orange-100'
+                                    : 'bg-neutral-100 text-neutral-400 border-neutral-200 cursor-default'
+                        }`}
+                        disabled={pendingCount === 0 && !showTodo}
                     >
-                        <option value="">전체 비목</option>
-                        {CATEGORY_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                    {/* 상태 드롭다운 */}
-                    <select
-                        value={filterStatus}
-                        onChange={e => { setFilterStatus(e.target.value); setShowTodo(false); }}
-                        className="px-3 py-2 rounded-xl bg-neutral-50 border border-neutral-200 text-sm outline-none cursor-pointer"
-                    >
-                        <option value="">전체 상태</option>
-                        {ALL_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                    {/* 활성 필터 초기화 */}
+                        <AlertCircle className="w-4 h-4" />
+                        처리할 업무
+                        <span className={`ml-0.5 px-1.5 py-0.5 rounded-full text-xs font-black ${
+                            showTodo ? 'bg-white/30 text-white' : pendingCount > 0 ? 'bg-orange-500 text-white' : 'bg-neutral-300 text-neutral-500'
+                        }`}>{pendingCount}</span>
+                    </button>
                     {(filterParticipant || filterCategory || filterStatus || showTodo) && (
                         <button
                             onClick={() => { setFilterParticipant(''); setFilterCategory(''); setFilterStatus(''); setShowTodo(false); }}
@@ -389,6 +361,29 @@ export default function AdminDashboard() {
                         >
                             필터 초기화
                         </button>
+                    )}
+                    {/* 활성 필터 표시 배지 */}
+                    {(filterParticipant || filterCategory || filterStatus) && (
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                            {filterParticipant && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700">
+                                    참가자: {filterParticipant}
+                                    <button onClick={() => setFilterParticipant('')} className="text-indigo-400 hover:text-indigo-700 ml-0.5">×</button>
+                                </span>
+                            )}
+                            {filterCategory && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700">
+                                    비목: {filterCategory}
+                                    <button onClick={() => setFilterCategory('')} className="text-indigo-400 hover:text-indigo-700 ml-0.5">×</button>
+                                </span>
+                            )}
+                            {filterStatus && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700">
+                                    상태: {filterStatus}
+                                    <button onClick={() => setFilterStatus('')} className="text-indigo-400 hover:text-indigo-700 ml-0.5">×</button>
+                                </span>
+                            )}
+                        </div>
                     )}
                 </div>
 
@@ -398,22 +393,69 @@ export default function AdminDashboard() {
                         <table className="min-w-full divide-y divide-neutral-200">
                             <thead className="bg-neutral-50">
                                 <tr>
+                                    {/* 신청번호: 정렬 */}
                                     <th onClick={() => handleSortCol('신청번호')}
-                                        className="px-4 py-4 text-center text-xs font-semibold text-neutral-500 uppercase cursor-pointer hover:text-indigo-600 select-none">
+                                        className="px-3 py-3 text-center text-xs font-semibold text-neutral-500 uppercase cursor-pointer hover:text-indigo-600 select-none whitespace-nowrap">
                                         신청번호<SortIcon col="신청번호" />
                                     </th>
-                                    <th className="px-4 py-4 text-center text-xs font-semibold text-neutral-500 uppercase">참가자명</th>
+                                    {/* 참가자명: 필터 드롭다운 */}
+                                    <th className="px-3 py-2 text-center">
+                                        <div className="text-xs font-semibold text-neutral-500 uppercase mb-1">참가자명</div>
+                                        <select
+                                            value={filterParticipant}
+                                            onChange={e => { setFilterParticipant(e.target.value); setShowTodo(false); }}
+                                            onClick={e => e.stopPropagation()}
+                                            className={`w-full px-2 py-1 rounded-lg border text-xs outline-none cursor-pointer transition-colors ${
+                                                filterParticipant ? 'bg-indigo-50 border-indigo-300 text-indigo-800 font-semibold' : 'bg-white border-neutral-200 text-neutral-600'
+                                            }`}
+                                        >
+                                            <option value="">전체</option>
+                                            {participants.map(p => (
+                                                <option key={p['참가자명']} value={p['참가자명']}>{p['참가자명']}</option>
+                                            ))}
+                                        </select>
+                                    </th>
+                                    {/* 신청일시: 정렬 */}
                                     <th onClick={() => handleSortCol('신청일시')}
-                                        className="px-4 py-4 text-center text-xs font-semibold text-neutral-500 uppercase cursor-pointer hover:text-indigo-600 select-none">
+                                        className="px-3 py-3 text-center text-xs font-semibold text-neutral-500 uppercase cursor-pointer hover:text-indigo-600 select-none whitespace-nowrap">
                                         신청일시<SortIcon col="신청일시" />
                                     </th>
-                                    <th className="px-4 py-4 text-center text-xs font-semibold text-neutral-500 uppercase">비목</th>
+                                    {/* 비목: 필터 드롭다운 */}
+                                    <th className="px-3 py-2 text-center">
+                                        <div className="text-xs font-semibold text-neutral-500 uppercase mb-1">비목</div>
+                                        <select
+                                            value={filterCategory}
+                                            onChange={e => { setFilterCategory(e.target.value); setShowTodo(false); }}
+                                            onClick={e => e.stopPropagation()}
+                                            className={`w-full px-2 py-1 rounded-lg border text-xs outline-none cursor-pointer transition-colors ${
+                                                filterCategory ? 'bg-indigo-50 border-indigo-300 text-indigo-800 font-semibold' : 'bg-white border-neutral-200 text-neutral-600'
+                                            }`}
+                                        >
+                                            <option value="">전체</option>
+                                            {CATEGORY_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}
+                                        </select>
+                                    </th>
+                                    {/* 신청금액: 정렬 */}
                                     <th onClick={() => handleSortCol('신청금액')}
-                                        className="px-4 py-4 text-center text-xs font-semibold text-neutral-500 uppercase cursor-pointer hover:text-indigo-600 select-none">
+                                        className="px-3 py-3 text-center text-xs font-semibold text-neutral-500 uppercase cursor-pointer hover:text-indigo-600 select-none whitespace-nowrap">
                                         신청금액<SortIcon col="신청금액" />
                                     </th>
-                                    <th className="px-4 py-4 text-center text-xs font-semibold text-neutral-500 uppercase">상태</th>
-                                    <th className="px-4 py-4 text-center text-xs font-semibold text-neutral-500 uppercase">관리</th>
+                                    {/* 상태: 필터 드롭다운 */}
+                                    <th className="px-3 py-2 text-center">
+                                        <div className="text-xs font-semibold text-neutral-500 uppercase mb-1">상태</div>
+                                        <select
+                                            value={filterStatus}
+                                            onChange={e => { setFilterStatus(e.target.value); setShowTodo(false); }}
+                                            onClick={e => e.stopPropagation()}
+                                            className={`w-full px-2 py-1 rounded-lg border text-xs outline-none cursor-pointer transition-colors ${
+                                                filterStatus ? 'bg-indigo-50 border-indigo-300 text-indigo-800 font-semibold' : 'bg-white border-neutral-200 text-neutral-600'
+                                            }`}
+                                        >
+                                            <option value="">전체</option>
+                                            {ALL_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                                        </select>
+                                    </th>
+                                    <th className="px-3 py-3 text-center text-xs font-semibold text-neutral-500 uppercase">관리</th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-neutral-100">
