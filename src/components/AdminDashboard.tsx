@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { RefreshCw, CheckCircle2, FileText, AlertCircle, Clock, XCircle, Search, Info, Banknote } from 'lucide-react';
+import { RefreshCw, CheckCircle2, FileText, AlertCircle, Clock, XCircle, Search, Info, Banknote, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { apiGetApplications, apiUpdateStatus } from '../api';
-import type { Application } from '../api';
+import { apiGetApplications, apiUpdateStatus, apiGetParticipants } from '../api';
+import type { Application, Participant } from '../api';
 import { STATUS_INFO } from '../statusInfo';
 
 // 증빙 관련 상태 목록
@@ -59,22 +59,36 @@ export default function AdminDashboard() {
         }
     }, [selectedDetail]);
 
-    const [searchTerm, setSearchTerm] = useState('');
-    const [selectedCategory, setSelectedCategory] = useState('전체 비목');
-    const [selectedStatus, setSelectedStatus] = useState('전체 상태');
+    // ── 필터 state ──
+    const [filterParticipant, setFilterParticipant] = useState('');
+    const [filterCategory, setFilterCategory] = useState('');
+    const [filterStatus, setFilterStatus] = useState('');
+    // ── 처리할 업무 토글 ──
+    const [showTodo, setShowTodo] = useState(false);
+    // ── 정렬 state ──
+    type SortCol = '신청번호' | '신청일시' | '신청금액';
+    const [sortCol, setSortCol] = useState<SortCol>('신청일시');
+    const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+    // ── 참가자 목록 (드롭다운용) ──
+    const [participants, setParticipants] = useState<Participant[]>([]);
 
     const fetchAll = async () => {
         setIsLoading(true);
         setErrorMsg('');
         try {
-            const apps = await apiGetApplications(user?.projectName || '', '관리자');
-            const sorted = [...apps].sort((a, b) =>
+            const [apps, pList] = await Promise.all([
+                apiGetApplications(user?.projectName || '', '관리자'),
+                apiGetParticipants('관리자').catch(() => [] as Participant[]),
+            ]);
+            // 원본은 신청일시 내림차순으로 보관
+            const base = [...apps].sort((a, b) =>
                 new Date(b['신청일시'] || 0).getTime() - new Date(a['신청일시'] || 0).getTime()
             );
-            setRecords(sorted);
+            setRecords(base);
+            setParticipants(pList);
             // 상세 모달이 열려 있으면 최신 데이터로 동기화
             setSelectedDetail(prev =>
-                prev ? (sorted.find(r => r['신청번호'] === prev['신청번호']) ?? prev) : null
+                prev ? (base.find(r => r['신청번호'] === prev['신청번호']) ?? prev) : null
             );
         } catch (err: any) {
             setErrorMsg(err.message || '신청 내역을 불러오지 못했습니다.');
@@ -248,20 +262,53 @@ export default function AdminDashboard() {
         return { name: si !== -1 ? raw.slice(0, si) : '보기', href: si !== -1 ? raw.slice(si + 3) : raw };
     };
 
-    const uniqueCategories = Array.from(new Set(records.map(r => r['비목'] || ''))).filter(Boolean).sort();
-    const uniqueStatuses = Array.from(new Set(records.map(r => r['상태'] || ''))).filter(Boolean).sort();
+    // 비목 고정 목록
+    const CATEGORY_OPTIONS = ['여비', '재료비', '외주용역비', '지급수수료'];
 
+    // 처리할 업무 대상 상태
+    const TODO_STATUSES = ['담당자 검토 대기 중', '정산 신청'];
+    const pendingCount = records.filter(r => TODO_STATUSES.includes(r['상태'] || '')).length;
+
+    // ── 필터 → 정렬 파이프라인 ──
     const filtered = records.filter(r => {
-        const matchSearch = !searchTerm || (r['참가자명'] || '').toLowerCase().includes(searchTerm.toLowerCase());
-        const matchCat = selectedCategory === '전체 비목' || r['비목'] === selectedCategory;
-        const matchStatus = selectedStatus === '전체 상태' || r['상태'] === selectedStatus;
-        return matchSearch && matchCat && matchStatus;
+        if (showTodo && !TODO_STATUSES.includes(r['상태'] || '')) return false;
+        if (filterParticipant && r['참가자명'] !== filterParticipant) return false;
+        if (filterCategory && r['비목'] !== filterCategory) return false;
+        if (filterStatus && r['상태'] !== filterStatus) return false;
+        return true;
     });
 
-    // "처리 필요" 상태 (담당자 검토 대기 중, 정산 신청, 정산 반려)
-    const pendingCount = records.filter(r =>
-        r['상태'] === '담당자 검토 대기 중' || r['상태'] === '정산 신청' || r['상태'] === '정산 반려'
-    ).length;
+    const handleSortCol = (col: '신청번호' | '신청일시' | '신청금액') => {
+        if (sortCol === col) {
+            setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortCol(col);
+            setSortDir('desc');
+        }
+    };
+
+    const displayRows = [...filtered].sort((a, b) => {
+        let va: any, vb: any;
+        if (sortCol === '신청번호') {
+            va = a['신청번호'] || ''; vb = b['신청번호'] || '';
+            return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+        } else if (sortCol === '신청일시') {
+            va = new Date(a['신청일시'] || 0).getTime();
+            vb = new Date(b['신청일시'] || 0).getTime();
+        } else {
+            va = Number(a['신청금액']) || 0;
+            vb = Number(b['신청금액']) || 0;
+        }
+        return sortDir === 'asc' ? va - vb : vb - va;
+    });
+
+    // 정렬 아이콘 헬퍼
+    const SortIcon = ({ col }: { col: '신청번호' | '신청일시' | '신청금액' }) => {
+        if (sortCol !== col) return <ChevronsUpDown className="inline w-3 h-3 ml-0.5 text-neutral-300" />;
+        return sortDir === 'asc'
+            ? <ChevronUp className="inline w-3 h-3 ml-0.5 text-indigo-500" />
+            : <ChevronDown className="inline w-3 h-3 ml-0.5 text-indigo-500" />;
+    };
 
     return (
         <div className="min-h-screen bg-neutral-50 py-10 px-4 sm:px-6 lg:px-8 font-sans">
@@ -272,13 +319,26 @@ export default function AdminDashboard() {
                             <FileText className="w-6 h-6 mr-2 text-indigo-600" /> 전체 신청 내역 (관리자)
                         </h1>
                         <p className="mt-1 text-sm text-neutral-500">
-                            처리 대기 중인 신청 <span className="font-semibold text-indigo-600">{pendingCount}건</span>이 있습니다.
+                            관리자 조치 필요 <span className="font-semibold text-indigo-600">{pendingCount}건</span>이 있습니다.
                         </p>
                     </div>
-                    <button onClick={fetchAll} disabled={isLoading}
-                        className="mt-4 sm:mt-0 inline-flex items-center px-4 py-2 border border-neutral-200 rounded-xl shadow-sm text-sm font-medium text-neutral-700 bg-white hover:bg-neutral-50 disabled:opacity-50 transition-colors">
-                        <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin text-indigo-500' : 'text-neutral-500'}`} /> 새로고침
-                    </button>
+                    <div className="mt-4 sm:mt-0 flex items-center gap-2">
+                        <button
+                            onClick={() => { setShowTodo(v => !v); setFilterStatus(''); setFilterParticipant(''); setFilterCategory(''); }}
+                            className={`inline-flex items-center px-4 py-2 rounded-xl shadow-sm text-sm font-bold border transition-colors ${
+                                showTodo
+                                    ? 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700'
+                                    : 'bg-white text-indigo-700 border-indigo-200 hover:bg-indigo-50'
+                            }`}
+                        >
+                            <AlertCircle className="w-4 h-4 mr-1.5" />
+                            처리할 업무 ({pendingCount})
+                        </button>
+                        <button onClick={fetchAll} disabled={isLoading}
+                            className="inline-flex items-center px-4 py-2 border border-neutral-200 rounded-xl shadow-sm text-sm font-medium text-neutral-700 bg-white hover:bg-neutral-50 disabled:opacity-50 transition-colors">
+                            <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin text-indigo-500' : 'text-neutral-500'}`} /> 새로고침
+                        </button>
+                    </div>
                 </div>
 
                 {errorMsg && (
@@ -289,21 +349,47 @@ export default function AdminDashboard() {
 
                 {/* 필터 바 */}
                 <div className="bg-white px-4 py-3 rounded-2xl shadow-sm border border-neutral-200 flex flex-wrap items-center gap-3">
-                    <div className="relative flex-1 min-w-[200px]">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
-                        <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="참가자명 검색"
-                            className="w-full pl-9 pr-4 py-2 rounded-xl bg-neutral-50 border border-neutral-200 outline-none focus:ring-2 focus:ring-indigo-500 text-sm" />
+                    {/* 참가자명 드롭다운 */}
+                    <div className="relative min-w-[150px]">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 pointer-events-none" />
+                        <select
+                            value={filterParticipant}
+                            onChange={e => { setFilterParticipant(e.target.value); setShowTodo(false); }}
+                            className="w-full pl-9 pr-4 py-2 rounded-xl bg-neutral-50 border border-neutral-200 text-sm outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer appearance-none"
+                        >
+                            <option value="">전체 참가자</option>
+                            {participants.map(p => (
+                                <option key={p['참가자명']} value={p['참가자명']}>{p['참가자명']}</option>
+                            ))}
+                        </select>
                     </div>
-                    <select value={selectedCategory} onChange={e => setSelectedCategory(e.target.value)}
-                        className="px-3 py-2 rounded-xl bg-neutral-50 border border-neutral-200 text-sm outline-none cursor-pointer">
-                        <option value="전체 비목">전체 비목</option>
-                        {uniqueCategories.map(c => <option key={c} value={c}>{c}</option>)}
+                    {/* 비목 드롭다운 */}
+                    <select
+                        value={filterCategory}
+                        onChange={e => { setFilterCategory(e.target.value); setShowTodo(false); }}
+                        className="px-3 py-2 rounded-xl bg-neutral-50 border border-neutral-200 text-sm outline-none cursor-pointer"
+                    >
+                        <option value="">전체 비목</option>
+                        {CATEGORY_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
-                    <select value={selectedStatus} onChange={e => setSelectedStatus(e.target.value)}
-                        className="px-3 py-2 rounded-xl bg-neutral-50 border border-neutral-200 text-sm outline-none cursor-pointer">
-                        <option value="전체 상태">전체 상태</option>
-                        {uniqueStatuses.map(s => <option key={s} value={s}>{s}</option>)}
+                    {/* 상태 드롭다운 */}
+                    <select
+                        value={filterStatus}
+                        onChange={e => { setFilterStatus(e.target.value); setShowTodo(false); }}
+                        className="px-3 py-2 rounded-xl bg-neutral-50 border border-neutral-200 text-sm outline-none cursor-pointer"
+                    >
+                        <option value="">전체 상태</option>
+                        {ALL_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
+                    {/* 활성 필터 초기화 */}
+                    {(filterParticipant || filterCategory || filterStatus || showTodo) && (
+                        <button
+                            onClick={() => { setFilterParticipant(''); setFilterCategory(''); setFilterStatus(''); setShowTodo(false); }}
+                            className="px-3 py-2 rounded-xl text-xs font-bold text-neutral-500 bg-neutral-100 hover:bg-neutral-200 transition-colors"
+                        >
+                            필터 초기화
+                        </button>
+                    )}
                 </div>
 
                 {/* 테이블 */}
@@ -312,11 +398,20 @@ export default function AdminDashboard() {
                         <table className="min-w-full divide-y divide-neutral-200">
                             <thead className="bg-neutral-50">
                                 <tr>
-                                    <th className="px-4 py-4 text-center text-xs font-semibold text-neutral-500 uppercase">신청번호</th>
+                                    <th onClick={() => handleSortCol('신청번호')}
+                                        className="px-4 py-4 text-center text-xs font-semibold text-neutral-500 uppercase cursor-pointer hover:text-indigo-600 select-none">
+                                        신청번호<SortIcon col="신청번호" />
+                                    </th>
                                     <th className="px-4 py-4 text-center text-xs font-semibold text-neutral-500 uppercase">참가자명</th>
-                                    <th className="px-4 py-4 text-center text-xs font-semibold text-neutral-500 uppercase">신청일시</th>
+                                    <th onClick={() => handleSortCol('신청일시')}
+                                        className="px-4 py-4 text-center text-xs font-semibold text-neutral-500 uppercase cursor-pointer hover:text-indigo-600 select-none">
+                                        신청일시<SortIcon col="신청일시" />
+                                    </th>
                                     <th className="px-4 py-4 text-center text-xs font-semibold text-neutral-500 uppercase">비목</th>
-                                    <th className="px-4 py-4 text-center text-xs font-semibold text-neutral-500 uppercase">신청금액</th>
+                                    <th onClick={() => handleSortCol('신청금액')}
+                                        className="px-4 py-4 text-center text-xs font-semibold text-neutral-500 uppercase cursor-pointer hover:text-indigo-600 select-none">
+                                        신청금액<SortIcon col="신청금액" />
+                                    </th>
                                     <th className="px-4 py-4 text-center text-xs font-semibold text-neutral-500 uppercase">상태</th>
                                     <th className="px-4 py-4 text-center text-xs font-semibold text-neutral-500 uppercase">관리</th>
                                 </tr>
@@ -327,13 +422,13 @@ export default function AdminDashboard() {
                                         <RefreshCw className="mx-auto w-8 h-8 text-indigo-500 animate-spin mb-3" />
                                         <span className="text-neutral-500 font-medium">불러오는 중입니다...</span>
                                     </td></tr>
-                                ) : filtered.length === 0 ? (
+                                ) : displayRows.length === 0 ? (
                                     <tr><td colSpan={7} className="text-center py-24 bg-neutral-50/30">
                                         <FileText className="mx-auto h-12 w-12 text-neutral-300 mb-3" />
                                         <h3 className="text-sm font-semibold text-neutral-900">조건에 맞는 신청이 없습니다</h3>
                                     </td></tr>
                                 ) : (
-                                    filtered.map((rec) => (
+                                    displayRows.map((rec) => (
                                         <tr key={rec['신청번호']} className="hover:bg-neutral-50/50 transition-colors">
                                             <td className="px-4 py-4 text-center text-xs font-mono text-neutral-500">{rec['신청번호']}</td>
                                             <td className="px-4 py-4 text-center text-sm font-semibold text-neutral-800">{rec['참가자명']}</td>
