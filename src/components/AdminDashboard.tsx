@@ -38,6 +38,19 @@ export default function AdminDashboard() {
     const [manualConfirm, setManualConfirm] = useState<{ from: string; to: string } | null>(null);
     // 커스텀 안내 모달: 동일 상태 선택 시 메시지 (null이면 닫힘)
     const [manualInfoMsg, setManualInfoMsg] = useState<string | null>(null);
+    // 수동 조정 확인 모달 내 반려 사유
+    const [manualRejectReason, setManualRejectReason] = useState('');
+    const [manualRejectError, setManualRejectError] = useState('');
+
+    // 반려 성격 상태 목록
+    const REJECT_STATUSES = ['수정 필요', '정산 반려'];
+
+    // 확인 모달 닫기 (사유·에러 함께 초기화)
+    const closeManualConfirm = () => {
+        setManualConfirm(null);
+        setManualRejectReason('');
+        setManualRejectError('');
+    };
 
     // 상세 모달이 열릴 때마다 현재 상태를 드롭다운 기본값으로 설정
     useEffect(() => {
@@ -159,12 +172,24 @@ export default function AdminDashboard() {
     // 확인 모달에서 「변경」 클릭 → 실제 API 호출
     const doManualStatusChange = async () => {
         if (!selectedDetail?.['신청번호'] || !manualConfirm) return;
-        setManualConfirm(null);
+
+        // 반려 상태로 변경 시 사유 필수 검증
+        if (REJECT_STATUSES.includes(manualConfirm.to)) {
+            if (!manualRejectReason.trim()) {
+                setManualRejectError('반려 사유를 입력해 주세요.');
+                return;
+            }
+        }
+
+        const targetTo = manualConfirm.to;
+        const targetReason = manualRejectReason.trim() || undefined;
+        closeManualConfirm();
         setProcessing(true);
         try {
             await apiUpdateStatus({
                 신청번호: selectedDetail['신청번호'],
-                상태: manualConfirm.to,
+                상태: targetTo,
+                반려사유: targetReason,
                 처리자: user?.projectName || 'admin',
             });
             await fetchAll();
@@ -599,7 +624,7 @@ export default function AdminDashboard() {
             {/* ── 상태 수동 조정: 변경 확인 모달 (z-[80], 상세 모달보다 위) ── */}
             {manualConfirm && (
                 <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
-                    onClick={() => setManualConfirm(null)}>
+                    onClick={closeManualConfirm}>
                     <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden"
                         onClick={e => e.stopPropagation()}>
                         <div className="px-6 py-4 border-b border-neutral-100 flex items-center justify-between">
@@ -607,19 +632,37 @@ export default function AdminDashboard() {
                                 <AlertCircle className="w-4 h-4 text-amber-500" />
                                 상태 변경 확인
                             </h3>
-                            <button onClick={() => setManualConfirm(null)} className="text-neutral-400 hover:text-neutral-600">✕</button>
+                            <button onClick={closeManualConfirm} className="text-neutral-400 hover:text-neutral-600">✕</button>
                         </div>
-                        <div className="px-6 py-5">
+                        <div className="px-6 py-5 space-y-3">
                             <p className="text-sm text-neutral-700 leading-relaxed">
                                 <span className="font-semibold text-neutral-900">'{manualConfirm.from}'</span>
                                 <span className="mx-2 text-neutral-400">→</span>
                                 <span className="font-semibold text-amber-700">'{manualConfirm.to}'</span>
                                 <span className="text-neutral-600">(으)로 변경하시겠습니까?</span>
                             </p>
-                            <p className="mt-2 text-xs text-neutral-400">변경 후 처리이력에 자동으로 기록됩니다.</p>
+                            <p className="text-xs text-neutral-400">변경 후 처리이력에 자동으로 기록됩니다.</p>
+
+                            {/* 반려 상태일 때만 사유 입력 */}
+                            {REJECT_STATUSES.includes(manualConfirm.to) && (
+                                <div className="pt-1">
+                                    <label className="block text-xs font-bold text-red-600 mb-1.5">
+                                        반려 사유 <span className="text-red-500">(필수)</span>
+                                    </label>
+                                    <textarea
+                                        value={manualRejectReason}
+                                        onChange={e => { setManualRejectReason(e.target.value); setManualRejectError(''); }}
+                                        placeholder="참가자에게 표시될 반려 사유를 입력하세요."
+                                        className="w-full min-h-[90px] px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-200 outline-none focus:ring-2 focus:ring-red-400 text-sm resize-y"
+                                    />
+                                    {manualRejectError && (
+                                        <p className="mt-1 text-xs text-red-600 font-medium">{manualRejectError}</p>
+                                    )}
+                                </div>
+                            )}
                         </div>
                         <div className="px-6 py-4 border-t border-neutral-100 flex justify-end gap-2">
-                            <button onClick={() => setManualConfirm(null)} disabled={processing}
+                            <button onClick={closeManualConfirm} disabled={processing}
                                 className="px-4 py-2 text-sm font-bold text-neutral-700 bg-white border border-neutral-300 rounded-lg hover:bg-neutral-50 disabled:opacity-50 transition-colors">
                                 취소
                             </button>
