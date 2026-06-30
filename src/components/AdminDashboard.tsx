@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
-import { RefreshCw, CheckCircle2, FileText, AlertCircle, Clock, XCircle, Info, Banknote, ChevronUp, ChevronDown, ChevronsUpDown, Bell, Edit2, Trash2, Plus, Save } from 'lucide-react';
+import { RefreshCw, CheckCircle2, FileText, AlertCircle, Clock, XCircle, Info, Banknote, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { apiGetApplications, apiUpdateStatus, apiGetParticipants, apiGetSetting, apiUpdateSetting, apiGetNotices, apiCreateNotice, apiUpdateNotice, apiDeleteNotice } from '../api';
-import type { Application, Participant, Notice } from '../api';
+import { apiGetApplications, apiUpdateStatus, apiGetParticipants } from '../api';
+import type { Application, Participant } from '../api';
 import { STATUS_INFO } from '../statusInfo';
 
-// 증빙 관련 상태 목록
 const SETTLEMENT_STATUSES = ['정산 신청', '정산 반려', '정산 중', '정산 완료'];
 
 export default function AdminDashboard() {
@@ -16,14 +15,11 @@ export default function AdminDashboard() {
     const [selectedDetail, setSelectedDetail] = useState<Application | null>(null);
     const [rejectTarget, setRejectTarget] = useState<Application | null>(null);
     const [rejectReason, setRejectReason] = useState('');
-    // '1차': 수정 필요(1차 반려), '2차': 정산 반려(2차 반려)
     const [rejectMode, setRejectMode] = useState<'1차' | '2차'>('1차');
     const [processing, setProcessing] = useState(false);
 
-    // 상태 설명 팝업
     const [statusPopup, setStatusPopup] = useState<string | null>(null);
 
-    // 상태 수동 조정 — 드롭다운 선택값
     const ALL_STATUSES = [
         '담당자 검토 대기 중',
         '수정 필요',
@@ -34,58 +30,33 @@ export default function AdminDashboard() {
         '정산 완료',
     ] as const;
     const [manualStatus, setManualStatus] = useState<string>('');
-    // 커스텀 확인 모달: 변경할 상태 정보 (null이면 닫힘)
     const [manualConfirm, setManualConfirm] = useState<{ from: string; to: string } | null>(null);
-    // 커스텀 안내 모달: 동일 상태 선택 시 메시지 (null이면 닫힘)
     const [manualInfoMsg, setManualInfoMsg] = useState<string | null>(null);
-    // 수동 조정 확인 모달 내 반려 사유
     const [manualRejectReason, setManualRejectReason] = useState('');
     const [manualRejectError, setManualRejectError] = useState('');
 
-    // 반려 성격 상태 목록
     const REJECT_STATUSES = ['수정 필요', '정산 반려'];
 
-    // 확인 모달 닫기 (사유·에러 함께 초기화)
     const closeManualConfirm = () => {
         setManualConfirm(null);
         setManualRejectReason('');
         setManualRejectError('');
     };
 
-    // 상세 모달이 열릴 때마다 현재 상태를 드롭다운 기본값으로 설정
     useEffect(() => {
         if (selectedDetail) {
             setManualStatus(selectedDetail['상태'] || '담당자 검토 대기 중');
         }
     }, [selectedDetail]);
 
-    // ── 필터 state ──
     const [filterParticipant, setFilterParticipant] = useState('');
     const [filterCategory, setFilterCategory] = useState('');
     const [filterStatus, setFilterStatus] = useState('');
-    // ── 처리할 업무 토글 ──
     const [showTodo, setShowTodo] = useState(false);
-    // ── 정렬 state ──
     type SortCol = '신청번호' | '신청일시' | '신청금액';
     const [sortCol, setSortCol] = useState<SortCol>('신청일시');
     const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
-    // ── 참가자 목록 (드롭다운용) ──
     const [participants, setParticipants] = useState<Participant[]>([]);
-
-    // ── 안내 문구 편집 ──
-    const [guideText, setGuideText] = useState('');
-    const [guideSaving, setGuideSaving] = useState(false);
-    const [guideSaveMsg, setGuideSaveMsg] = useState<string | null>(null);
-
-    // ── 공지사항 관리 ──
-    const [notices, setNotices] = useState<Notice[]>([]);
-    const [noticeModalOpen, setNoticeModalOpen] = useState(false);
-    const [editingNotice, setEditingNotice] = useState<Notice | null>(null); // null=작성, 객체=수정
-    const [noticeTitle, setNoticeTitle] = useState('');
-    const [noticeContent, setNoticeContent] = useState('');
-    const [noticeProcessing, setNoticeProcessing] = useState(false);
-    const [deleteConfirm, setDeleteConfirm] = useState<Notice | null>(null);
-    const [noticeInfoMsg, setNoticeInfoMsg] = useState<string | null>(null);
 
     const fetchAll = async () => {
         setIsLoading(true);
@@ -95,14 +66,11 @@ export default function AdminDashboard() {
                 apiGetApplications(user?.projectName || '', '관리자'),
                 apiGetParticipants('관리자').catch(() => [] as Participant[]),
             ]);
-            // 원본은 신청일시 내림차순으로 보관
             const base = [...apps].sort((a, b) =>
                 new Date(b['신청일시'] || 0).getTime() - new Date(a['신청일시'] || 0).getTime()
             );
             setRecords(base);
-            // 역할이 '참가자'인 사람만 필터 드롭다운에 표시
             setParticipants(pList.filter(p => p['역할'] !== '관리자'));
-            // 상세 모달이 열려 있으면 최신 데이터로 동기화
             setSelectedDetail(prev =>
                 prev ? (base.find(r => r['신청번호'] === prev['신청번호']) ?? prev) : null
             );
@@ -113,90 +81,11 @@ export default function AdminDashboard() {
         }
     };
 
-    const fetchGuideAndNotices = async () => {
-        try {
-            const [g, n] = await Promise.all([apiGetSetting('프로그램안내'), apiGetNotices()]);
-            setGuideText(g);
-            setNotices(n);
-        } catch { /* 실패 시 지소 */ }
-    };
-
     useEffect(() => {
         fetchAll();
-        fetchGuideAndNotices();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // ── 안내 문구 저장 ──
-    const handleGuideSave = async () => {
-        setGuideSaving(true);
-        try {
-            await apiUpdateSetting('프로그램안내', guideText);
-            setGuideSaveMsg('저장되었습니다.');
-        } catch (err: any) {
-            setGuideSaveMsg(err.message || '저장 중 오류가 발생했습니다.');
-        } finally {
-            setGuideSaving(false);
-        }
-    };
-
-    // ── 공지 모달 열기 ──
-    const openNoticeModal = (n?: Notice) => {
-        setEditingNotice(n || null);
-        setNoticeTitle(n ? n.제목 : '');
-        setNoticeContent(n ? n.내용 : '');
-        setNoticeModalOpen(true);
-    };
-    const closeNoticeModal = () => { setNoticeModalOpen(false); setEditingNotice(null); setNoticeTitle(''); setNoticeContent(''); };
-
-    // ── 공지 저장 (작성/수정) ──
-    const handleNoticeSave = async () => {
-        if (!noticeTitle.trim()) { setNoticeInfoMsg('제목을 입력해 주세요.'); return; }
-        if (!noticeContent.trim()) { setNoticeInfoMsg('내용을 입력해 주세요.'); return; }
-        setNoticeProcessing(true);
-        try {
-            if (editingNotice?.id) {
-                await apiUpdateNotice(editingNotice.id, noticeTitle.trim(), noticeContent.trim());
-            } else {
-                await apiCreateNotice(noticeTitle.trim(), noticeContent.trim());
-            }
-            closeNoticeModal();
-            const updated = await apiGetNotices();
-            setNotices(updated);
-        } catch (err: any) {
-            setNoticeInfoMsg(err.message || '공지 저장 중 오류가 발생했습니다.');
-        } finally {
-            setNoticeProcessing(false);
-        }
-    };
-
-    // ── 공지 삭제 ──
-    const handleNoticeDelete = async () => {
-        if (!deleteConfirm?.id) return;
-        setNoticeProcessing(true);
-        try {
-            await apiDeleteNotice(deleteConfirm.id);
-            setDeleteConfirm(null);
-            const updated = await apiGetNotices();
-            setNotices(updated);
-        } catch (err: any) {
-            setNoticeInfoMsg(err.message || '삭제 중 오류가 발생했습니다.');
-            setDeleteConfirm(null);
-        } finally {
-            setNoticeProcessing(false);
-        }
-    };
-
-    const formatDate = (d?: string) => {
-        if (!d) return '';
-        try {
-            const dt = new Date(d);
-            if (isNaN(dt.getTime())) return d;
-            return `${dt.getFullYear()}.${String(dt.getMonth()+1).padStart(2,'0')}.${String(dt.getDate()).padStart(2,'0')}`;
-        } catch { return ''; }
-    };
-
-    // ── 1차 승인 (사전 승인 완료) ──────────────────────────────────────────
     const handleApprove = async (rec: Application) => {
         if (!rec['신청번호']) return;
         setProcessing(true);
@@ -211,7 +100,6 @@ export default function AdminDashboard() {
         }
     };
 
-    // ── 반려 확정 (1차: 수정 필요 / 2차: 정산 반려) ────────────────────────
     const handleReject = async () => {
         if (!rejectTarget?.['신청번호']) return;
         if (!rejectReason.trim()) { alert('반려 사유를 입력해주세요.'); return; }
@@ -233,7 +121,6 @@ export default function AdminDashboard() {
         }
     };
 
-    // ── 2차 승인: 정산 중 ──────────────────────────────────────────────────
     const handleSettlementApprove = async (rec: Application) => {
         if (!rec['신청번호']) return;
         setProcessing(true);
@@ -248,7 +135,6 @@ export default function AdminDashboard() {
         }
     };
 
-    // ── 2차 완료: 정산 완료 ────────────────────────────────────────────────
     const handleSettlementComplete = async (rec: Application) => {
         if (!rec['신청번호']) return;
         setProcessing(true);
@@ -263,8 +149,6 @@ export default function AdminDashboard() {
         }
     };
 
-    // ── 상태 수동 조정 ──────────────────────────────────────────────────────
-    // 「상태 변경」 버튼 클릭 → 확인 모달 열기 (또는 동일 상태 안내)
     const handleManualStatusChange = () => {
         if (!selectedDetail?.['신청번호']) return;
         const currentStatus = (selectedDetail['상태'] || '').trim();
@@ -273,22 +157,17 @@ export default function AdminDashboard() {
             setManualInfoMsg('현재 상태와 동일한 상태입니다. 다른 상태를 선택해주세요.');
             return;
         }
-        // 확인 모달 열기
         setManualConfirm({ from: currentStatus, to: nextStatus });
     };
 
-    // 확인 모달에서 「변경」 클릭 → 실제 API 호출
     const doManualStatusChange = async () => {
         if (!selectedDetail?.['신청번호'] || !manualConfirm) return;
-
-        // 반려 상태로 변경 시 사유 필수 검증
         if (REJECT_STATUSES.includes(manualConfirm.to)) {
             if (!manualRejectReason.trim()) {
                 setManualRejectError('반려 사유를 입력해 주세요.');
                 return;
             }
         }
-
         const targetTo = manualConfirm.to;
         const targetReason = manualRejectReason.trim() || undefined;
         closeManualConfirm();
@@ -349,21 +228,16 @@ export default function AdminDashboard() {
         } catch { return '-'; }
     };
 
-    // "원본파일명|||url" 파싱 헬퍼
     const parseAttach = (raw?: string | null) => {
         if (!raw || typeof raw !== 'string') return null;
         const si = raw.indexOf('|||');
         return { name: si !== -1 ? raw.slice(0, si) : '보기', href: si !== -1 ? raw.slice(si + 3) : raw };
     };
 
-    // 비목 고정 목록
     const CATEGORY_OPTIONS = ['여비', '재료비', '외주용역비', '지급수수료'];
-
-    // 처리할 업무 대상 상태
     const TODO_STATUSES = ['담당자 검토 대기 중', '정산 신청'];
     const pendingCount = records.filter(r => TODO_STATUSES.includes(r['상태'] || '')).length;
 
-    // ── 필터 → 정렬 파이프라인 ──
     const filtered = records.filter(r => {
         if (showTodo && !TODO_STATUSES.includes(r['상태'] || '')) return false;
         if (filterParticipant && r['참가자명'] !== filterParticipant) return false;
@@ -396,7 +270,6 @@ export default function AdminDashboard() {
         return sortDir === 'asc' ? va - vb : vb - va;
     });
 
-    // 정렬 아이콘 헬퍼
     const SortIcon = ({ col }: { col: '신청번호' | '신청일시' | '신청금액' }) => {
         if (sortCol !== col) return <ChevronsUpDown className="inline w-3 h-3 ml-0.5 text-neutral-300" />;
         return sortDir === 'asc'
@@ -428,7 +301,7 @@ export default function AdminDashboard() {
                     </div>
                 )}
 
-                {/* 툴바: 처리할 업무 버튼 + 필터 초기화 */}
+                {/* 툴바 */}
                 <div className="bg-white px-4 py-3 rounded-2xl shadow-sm border border-neutral-200 flex flex-wrap items-center gap-3">
                     <button
                         onClick={() => { setShowTodo(v => !v); setFilterStatus(''); setFilterParticipant(''); setFilterCategory(''); }}
@@ -455,7 +328,6 @@ export default function AdminDashboard() {
                             필터 초기화
                         </button>
                     )}
-                    {/* 활성 필터 표시 배지 */}
                     {(filterParticipant || filterCategory || filterStatus) && (
                         <div className="flex items-center gap-1.5 flex-wrap">
                             {filterParticipant && (
@@ -486,12 +358,10 @@ export default function AdminDashboard() {
                         <table className="min-w-full divide-y divide-neutral-200">
                             <thead className="bg-neutral-50">
                                 <tr>
-                                    {/* 신청번호: 정렬 */}
                                     <th onClick={() => handleSortCol('신청번호')}
                                         className="px-3 py-3 text-center text-xs font-semibold text-neutral-500 uppercase cursor-pointer hover:text-indigo-600 select-none whitespace-nowrap">
                                         신청번호<SortIcon col="신청번호" />
                                     </th>
-                                    {/* 참가자명: 필터 드롭다운 */}
                                     <th className="px-3 py-2 text-center">
                                         <div className="text-xs font-semibold text-neutral-500 uppercase mb-1">참가자명</div>
                                         <select
@@ -508,12 +378,10 @@ export default function AdminDashboard() {
                                             ))}
                                         </select>
                                     </th>
-                                    {/* 신청일시: 정렬 */}
                                     <th onClick={() => handleSortCol('신청일시')}
                                         className="px-3 py-3 text-center text-xs font-semibold text-neutral-500 uppercase cursor-pointer hover:text-indigo-600 select-none whitespace-nowrap">
                                         신청일시<SortIcon col="신청일시" />
                                     </th>
-                                    {/* 비목: 필터 드롭다운 */}
                                     <th className="px-3 py-2 text-center">
                                         <div className="text-xs font-semibold text-neutral-500 uppercase mb-1">비목</div>
                                         <select
@@ -528,12 +396,10 @@ export default function AdminDashboard() {
                                             {CATEGORY_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}
                                         </select>
                                     </th>
-                                    {/* 신청금액: 정렬 */}
                                     <th onClick={() => handleSortCol('신청금액')}
                                         className="px-3 py-3 text-center text-xs font-semibold text-neutral-500 uppercase cursor-pointer hover:text-indigo-600 select-none whitespace-nowrap">
                                         신청금액<SortIcon col="신청금액" />
                                     </th>
-                                    {/* 상태: 필터 드롭다운 */}
                                     <th className="px-3 py-2 text-center">
                                         <div className="text-xs font-semibold text-neutral-500 uppercase mb-1">상태</div>
                                         <select
@@ -601,77 +467,6 @@ export default function AdminDashboard() {
                     </div>
                 </div>
 
-                {/* ── 프로그램 안내 문구 수정 영역 ── */}
-                <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 overflow-hidden">
-                    <div className="px-6 py-4 border-b border-neutral-100 flex items-center justify-between">
-                        <h2 className="text-base font-bold text-neutral-900 flex items-center gap-2">
-                            <FileText className="w-4 h-4 text-indigo-500" /> 프로그램 안내 문구 수정
-                        </h2>
-                    </div>
-                    <div className="px-6 py-5">
-                        <textarea
-                            value={guideText}
-                            onChange={e => setGuideText(e.target.value)}
-                            rows={8}
-                            placeholder="프로그램 안내 문구를 입력하세요..."
-                            className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-200 outline-none focus:ring-2 focus:ring-indigo-500 text-sm resize-y font-mono"
-                        />
-                        <div className="mt-3 flex justify-end">
-                            <button
-                                onClick={handleGuideSave}
-                                disabled={guideSaving}
-                                className="inline-flex items-center gap-1.5 px-5 py-2 text-sm font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-colors"
-                            >
-                                <Save className="w-4 h-4" />
-                                {guideSaving ? '저장 중...' : '저장'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                {/* ── 공지사항 관리 영역 ── */}
-                <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 overflow-hidden">
-                    <div className="px-6 py-4 border-b border-neutral-100 flex items-center justify-between">
-                        <h2 className="text-base font-bold text-neutral-900 flex items-center gap-2">
-                            <Bell className="w-4 h-4 text-amber-500" /> 공지사항 관리
-                        </h2>
-                        <button
-                            onClick={() => openNoticeModal()}
-                            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-white bg-amber-500 rounded-xl hover:bg-amber-600 transition-colors"
-                        >
-                            <Plus className="w-4 h-4" /> 새 공지 작성
-                        </button>
-                    </div>
-                    <div className="divide-y divide-neutral-100">
-                        {notices.length === 0 ? (
-                            <p className="px-6 py-8 text-center text-sm text-neutral-400">등록된 공지사항이 없습니다.</p>
-                        ) : notices.map(n => (
-                            <div key={n.id} className="px-6 py-4 flex items-center justify-between gap-3">
-                                <div className="min-w-0">
-                                    <p className="font-semibold text-neutral-800 text-sm truncate">{n.제목}</p>
-                                    <p className="text-xs text-neutral-400 mt-0.5">{formatDate(n.작성일시)}</p>
-                                </div>
-                                <div className="flex items-center gap-2 shrink-0">
-                                    <button
-                                        onClick={() => openNoticeModal(n)}
-                                        className="p-1.5 rounded-lg text-neutral-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
-                                        title="수정"
-                                    >
-                                        <Edit2 className="w-4 h-4" />
-                                    </button>
-                                    <button
-                                        onClick={() => setDeleteConfirm(n)}
-                                        className="p-1.5 rounded-lg text-neutral-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                                        title="삭제"
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
             </div>
 
             {/* 상태 설명 팝업 */}
@@ -703,12 +498,10 @@ export default function AdminDashboard() {
                             <button onClick={() => setSelectedDetail(null)} className="text-neutral-400 hover:text-neutral-600">✕</button>
                         </div>
 
-                        {/* 본문 */}
                         <div className="px-6 py-5 space-y-3 max-h-[60vh] overflow-y-auto text-sm">
                             <DetailRow label="비목" value={selectedDetail['비목']} />
                             <DetailRow label="신청금액" value={`${(Number(selectedDetail['신청금액']) || 0).toLocaleString()}원`} />
 
-                            {/* 상태 행 */}
                             <div className="flex justify-between py-1 border-b border-neutral-50">
                                 <span className="text-neutral-500">상태</span>
                                 <div className="flex items-center gap-1.5">
@@ -722,7 +515,6 @@ export default function AdminDashboard() {
                                 </div>
                             </div>
 
-                            {/* 비목별 상세 */}
                             {selectedDetail['비목'] === '여비' && <>
                                 <DetailRow label="출발지" value={selectedDetail['출발지']} />
                                 <DetailRow label="도착지" value={selectedDetail['도착지']} />
@@ -747,7 +539,6 @@ export default function AdminDashboard() {
                                 <DetailRow label="멘토링주제" value={selectedDetail['멘토링주제']} />
                             </>}
 
-                            {/* 첨부파일 */}
                             {selectedDetail['첨부파일'] && (() => {
                                 const p = parseAttach(selectedDetail['첨부파일']);
                                 if (!p) return null;
@@ -762,7 +553,6 @@ export default function AdminDashboard() {
                                 );
                             })()}
 
-                            {/* ── 증빙 서류 (정산 관련 상태이면 항상 섹션 표시, 파일은 있는 것만) ── */}
                             {SETTLEMENT_STATUSES.includes((selectedDetail['상태'] || '').trim()) && (
                                 <div className="mt-3 pt-3 border-t border-neutral-200">
                                     <p className="text-xs font-bold text-neutral-600 mb-2 flex items-center gap-1.5">
@@ -799,14 +589,12 @@ export default function AdminDashboard() {
                                 </div>
                             )}
 
-                            {/* 처리이력 */}
                             {selectedDetail['처리이력'] && (
                                 <div className="mt-2 p-3 bg-neutral-50 border border-neutral-100 rounded-lg whitespace-pre-line text-xs text-neutral-600">
                                     <span className="font-semibold text-neutral-700">처리이력:</span><br />{selectedDetail['처리이력']}
                                 </div>
                             )}
 
-                            {/* 반려 사유 (수정 필요 / 정산 반려) */}
                             {(selectedDetail['상태'] === '수정 필요' || selectedDetail['상태'] === '정산 반려') && selectedDetail['반려사유'] && (
                                 <div className="mt-2 p-3 bg-red-50 border border-red-100 rounded-lg">
                                     <span className="font-semibold text-red-700">반려 사유: </span>
@@ -814,7 +602,7 @@ export default function AdminDashboard() {
                                 </div>
                             )}
 
-                            {/* ── 상태 수동 조정 ── */}
+                            {/* 상태 수동 조정 */}
                             <div className="mt-4 pt-4 border-t-2 border-dashed border-amber-200">
                                 <p className="text-xs font-bold text-amber-700 mb-2 flex items-center gap-1.5">
                                     <AlertCircle className="w-3.5 h-3.5" />
@@ -822,7 +610,6 @@ export default function AdminDashboard() {
                                 </p>
                                 <div className="flex items-center gap-2">
                                     <select
-                                        id="manual-status-select"
                                         value={manualStatus}
                                         onChange={e => setManualStatus(e.target.value)}
                                         disabled={processing}
@@ -833,7 +620,6 @@ export default function AdminDashboard() {
                                         ))}
                                     </select>
                                     <button
-                                        id="manual-status-change-btn"
                                         onClick={handleManualStatusChange}
                                         disabled={processing}
                                         className="px-4 py-2 text-sm font-bold text-amber-800 bg-amber-100 border border-amber-300 rounded-xl hover:bg-amber-200 disabled:opacity-50 transition-colors whitespace-nowrap"
@@ -844,7 +630,7 @@ export default function AdminDashboard() {
                             </div>
                         </div>
 
-                        {/* ── 하단 버튼: 상태별 if-else 분기 (trim으로 공백 방어) ── */}
+                        {/* 하단 버튼 */}
                         {(() => {
                             const st = (selectedDetail['상태'] || '').trim();
                             if (st === '담당자 검토 대기 중') return (
@@ -886,14 +672,13 @@ export default function AdminDashboard() {
                                     <span className="text-sm text-neutral-400 italic">최종 완료 — 추가 처리 없음</span>
                                 </div>
                             );
-                            // 그 외(수정 필요, 사전 승인 완료 등) — 버튼 없음
                             return null;
                         })()}
                     </div>
                 </div>
             )}
 
-            {/* 반려 사유 입력 모달 (1차/2차 공통) */}
+            {/* 반려 사유 입력 모달 */}
             {rejectTarget && (
                 <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
                     <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
@@ -923,7 +708,7 @@ export default function AdminDashboard() {
                 </div>
             )}
 
-            {/* ── 상태 수동 조정: 변경 확인 모달 (z-[80], 상세 모달보다 위) ── */}
+            {/* 상태 수동 조정: 변경 확인 모달 */}
             {manualConfirm && (
                 <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
                     onClick={closeManualConfirm}>
@@ -944,8 +729,6 @@ export default function AdminDashboard() {
                                 <span className="text-neutral-600">(으)로 변경하시겠습니까?</span>
                             </p>
                             <p className="text-xs text-neutral-400">변경 후 처리이력에 자동으로 기록됩니다.</p>
-
-                            {/* 반려 상태일 때만 사유 입력 */}
                             {REJECT_STATUSES.includes(manualConfirm.to) && (
                                 <div className="pt-1">
                                     <label className="block text-xs font-bold text-red-600 mb-1.5">
@@ -977,138 +760,7 @@ export default function AdminDashboard() {
                 </div>
             )}
 
-            {/* ── 안내 문구 저장 결과 모달 ── */}
-            {guideSaveMsg && (
-                <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
-                    onClick={() => setGuideSaveMsg(null)}>
-                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden"
-                        onClick={e => e.stopPropagation()}>
-                        <div className="px-6 py-4 border-b border-neutral-100 flex items-center justify-between">
-                            <h3 className="text-base font-bold text-neutral-900 flex items-center gap-2">
-                                <Info className="w-4 h-4 text-indigo-500" /> 안내
-                            </h3>
-                            <button onClick={() => setGuideSaveMsg(null)} className="text-neutral-400 hover:text-neutral-600">✕</button>
-                        </div>
-                        <div className="px-6 py-5">
-                            <p className="text-sm text-neutral-700 leading-relaxed">{guideSaveMsg}</p>
-                        </div>
-                        <div className="px-6 py-4 border-t border-neutral-100 flex justify-end">
-                            <button onClick={() => setGuideSaveMsg(null)}
-                                className="px-5 py-2 text-sm font-bold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors">
-                                확인
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* ── 공지 작성/수정 모달 ── */}
-            {noticeModalOpen && (
-                <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
-                    onClick={closeNoticeModal}>
-                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
-                        onClick={e => e.stopPropagation()}>
-                        <div className="px-6 py-4 border-b border-neutral-100 flex items-center justify-between">
-                            <h3 className="text-base font-bold text-neutral-900 flex items-center gap-2">
-                                <Bell className="w-4 h-4 text-amber-500" />
-                                {editingNotice ? '공지 수정' : '새 공지 작성'}
-                            </h3>
-                            <button onClick={closeNoticeModal} className="text-neutral-400 hover:text-neutral-600">✕</button>
-                        </div>
-                        <div className="px-6 py-5 space-y-4">
-                            <div>
-                                <label className="block text-xs font-bold text-neutral-600 mb-1.5">제목</label>
-                                <input
-                                    type="text"
-                                    value={noticeTitle}
-                                    onChange={e => setNoticeTitle(e.target.value)}
-                                    placeholder="공지 제목을 입력하세요"
-                                    className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-200 outline-none focus:ring-2 focus:ring-amber-400 text-sm"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-neutral-600 mb-1.5">내용</label>
-                                <textarea
-                                    value={noticeContent}
-                                    onChange={e => setNoticeContent(e.target.value)}
-                                    placeholder="공지 내용을 입력하세요"
-                                    rows={6}
-                                    className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-200 outline-none focus:ring-2 focus:ring-amber-400 text-sm resize-y"
-                                />
-                            </div>
-                        </div>
-                        <div className="px-6 py-4 border-t border-neutral-100 flex justify-end gap-2">
-                            <button onClick={closeNoticeModal} disabled={noticeProcessing}
-                                className="px-4 py-2 text-sm font-bold text-neutral-700 bg-white border border-neutral-300 rounded-lg hover:bg-neutral-50 disabled:opacity-50 transition-colors">
-                                취소
-                            </button>
-                            <button onClick={handleNoticeSave} disabled={noticeProcessing}
-                                className="px-5 py-2 text-sm font-bold text-white bg-amber-500 rounded-lg hover:bg-amber-600 disabled:opacity-50 transition-colors">
-                                {noticeProcessing ? '저장 중...' : (editingNotice ? '수정 완료' : '작성 완료')}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* ── 공지 삭제 확인 모달 ── */}
-            {deleteConfirm && (
-                <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
-                    onClick={() => setDeleteConfirm(null)}>
-                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden"
-                        onClick={e => e.stopPropagation()}>
-                        <div className="px-6 py-4 border-b border-neutral-100 flex items-center justify-between">
-                            <h3 className="text-base font-bold text-neutral-900 flex items-center gap-2">
-                                <Trash2 className="w-4 h-4 text-red-500" /> 공지 삭제 확인
-                            </h3>
-                            <button onClick={() => setDeleteConfirm(null)} className="text-neutral-400 hover:text-neutral-600">✕</button>
-                        </div>
-                        <div className="px-6 py-5">
-                            <p className="text-sm text-neutral-700 leading-relaxed">
-                                '<span className="font-semibold">{deleteConfirm.제목}</span>' 공지를 삭제하시겠습니까?
-                            </p>
-                            <p className="text-xs text-red-500 mt-2">삭제 후 복구할 수 없습니다.</p>
-                        </div>
-                        <div className="px-6 py-4 border-t border-neutral-100 flex justify-end gap-2">
-                            <button onClick={() => setDeleteConfirm(null)} disabled={noticeProcessing}
-                                className="px-4 py-2 text-sm font-bold text-neutral-700 bg-white border border-neutral-300 rounded-lg hover:bg-neutral-50 disabled:opacity-50 transition-colors">
-                                취소
-                            </button>
-                            <button onClick={handleNoticeDelete} disabled={noticeProcessing}
-                                className="px-5 py-2 text-sm font-bold text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors">
-                                {noticeProcessing ? '삭제 중...' : '삭제'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* ── 공지 작업 안내/오류 모달 ── */}
-            {noticeInfoMsg && (
-                <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
-                    onClick={() => setNoticeInfoMsg(null)}>
-                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden"
-                        onClick={e => e.stopPropagation()}>
-                        <div className="px-6 py-4 border-b border-neutral-100 flex items-center justify-between">
-                            <h3 className="text-base font-bold text-neutral-900 flex items-center gap-2">
-                                <Info className="w-4 h-4 text-indigo-500" /> 안내
-                            </h3>
-                            <button onClick={() => setNoticeInfoMsg(null)} className="text-neutral-400 hover:text-neutral-600">✕</button>
-                        </div>
-                        <div className="px-6 py-5">
-                            <p className="text-sm text-neutral-700 leading-relaxed">{noticeInfoMsg}</p>
-                        </div>
-                        <div className="px-6 py-4 border-t border-neutral-100 flex justify-end">
-                            <button onClick={() => setNoticeInfoMsg(null)}
-                                className="px-5 py-2 text-sm font-bold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors">
-                                확인
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* ── 상태 수동 조정: 동일 상태 또는 오류 안내 모달 (z-[80]) ── */}
+            {/* 상태 수동 조정: 안내 모달 */}
             {manualInfoMsg && (
                 <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
                     onClick={() => setManualInfoMsg(null)}>

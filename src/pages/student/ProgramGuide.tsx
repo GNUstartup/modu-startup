@@ -1,20 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Info, AlertCircle, FileText, Plane, Box, Briefcase, UserCheck, ArrowRight, CheckCircle2, Bell } from 'lucide-react';
-import { apiGetNotices, apiGetSetting, apiUpdateSetting } from '../../api';
-import type { Notice } from '../../api';
+import { Info, AlertCircle, FileText, Plane, Box, Briefcase, UserCheck, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { apiGetSetting, apiUpdateSetting } from '../../api';
 
-// 기존 안내 문구 초기 기본값 (DB가 비어있을 때 자동으로 저장됨)
-const DEFAULT_GUIDE_TEXT = `여러분들이 받게 되는 '성장 지원금'은 단순한 장학금이거나 지원금이 아니며 정부(중소벤처기업부) 예산으로 집행되는 '사업비'입니다. 따라서 모든 지출(비용)은 사업계획서에 명시된 창업아이템의 개발·사업화 목적에 직접 연관 되어야 하며, '사업단이 대신 결제(구매대행)' 하는 방식으로만 집행됩니다.
+// ── 디자인 컴포넌트 ──────────────────────────────────────────────────────────
 
-양산 목적의 물품·용역 구매는 불가, 시제품 제작 및 시장조사 관련 사항만 집행 가능.
-모든 거래의 세금계산서나 영수증은 '경상국립대학교 산학협력단' 명의로 발행되어야 합니다.
-만약 참가자가 개인 신용·체크카드로 선결제하거나, 개인 계좌로 송금한 경우 사업비로 인정하지 않습니다.
-
-지원금은 현금으로 지급하는 것이 아닌, 참가자의 요청을 받고 사업단에서 대리 결제하는 방식입니다.
-즉, 참가자가 '필요한 품목'을 제안하면 사업단이 승인 후 직접 결제하는 구조입니다.
-(외상 거래 기본, 선결제 불가)`;
-
-// Design Components
 const SectionBadge = ({ title, color = "indigo" }: { title: string, color?: "indigo" | "blue" | "green" | "purple" | "orange" }) => {
     const colorMap = {
         indigo: "bg-indigo-50 text-indigo-700 border-indigo-200",
@@ -47,7 +36,6 @@ const NoticeCard = ({ children, color = "neutral" }: { children: React.ReactNode
         purple: "text-purple-500",
         orange: "text-orange-500"
     };
-
     return (
         <div className={`p-5 mb-5 rounded-xl border flex items-start gap-3 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] ${colorMap[color]}`}>
             <AlertCircle className={`w-6 h-6 flex-shrink-0 mt-0.5 ${iconColorMap[color]}`} />
@@ -65,7 +53,6 @@ const ProcessFlow = ({ steps, theme = "neutral" }: { steps: string[], theme?: "n
         orange: { bg: "bg-white", text: "text-orange-800", border: "border-orange-200", arrow: "text-orange-500" }
     };
     const t = themeMap[theme];
-
     return (
         <div className="flex flex-wrap items-center gap-2 mb-4">
             {steps.map((step, index) => (
@@ -87,7 +74,6 @@ const DocumentTable = ({ headers, rows, color = "indigo" }: { headers: string[],
         indigo: "bg-[#3949AB]", blue: "bg-[#0288D1]", green: "bg-[#2E7D32]", purple: "bg-[#7B1FA2]", orange: "bg-[#E65100]"
     };
     const headerClass = bgHeaderMap[color] || "bg-neutral-800";
-
     return (
         <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden shadow-sm mb-5">
             <table className="min-w-full text-[15px] border-collapse text-left">
@@ -116,14 +102,41 @@ const DocumentTable = ({ headers, rows, color = "indigo" }: { headers: string[],
     );
 };
 
+// ── 기존 안내 내용 (DB가 비어있을 때 초기값으로 저장) ─────────────────────────
+const DEFAULT_GUIDE_TEXT = `【개요】
+여러분들이 받게 되는 '성장 지원금'은 단순한 장학금이거나 지원금이 아니며 정부(중소벤처기업부) 예산으로 집행되는 '사업비'입니다. 따라서 모든 지출(비용)은 사업계획서에 명시된 창업아이템의 개발·사업화 목적에 직접 연관 되어야 하며, '사업단이 대신 결제(구매대행)' 하는 방식으로만 집행됩니다.
+
+양산 목적의 물품·용역 구매는 불가, 시제품 제작 및 시장조사 관련 사항만 집행 가능.
+모든 거래의 세금계산서나 영수증은 '경상국립대학교 산학협력단' 명의로 발행되어야 합니다.
+만약 참가자가 개인 신용·체크카드로 선결제하거나, 개인 계좌로 송금한 경우 사업비로 인정하지 않습니다.
+
+【지원금 사용】
+현금을 참가자에게 지급하는 것이 아닌 참가자의 요청을 받고 사업단에서 대리 결제하는 방식.
+즉, 참가자가 '필요한 품목'을 제안하면, 사업단이 승인 후 직접 결제하는 구조
+(외상 거래 기본, 선결제 불가)
+
+【기본 진행 절차】
+지원금 사용 (1~3주 소요): 사전 신청(월) → 내부 검토 → 승인 후 진행 → 결제 및 지급
+계획 변경 (1~2주 소요): 사전 신청(목) → 내부 검토 → 승인 후 결재 → 완료 및 반영
+
+【유의사항】
+· 회차당 사업비 사용 금액 최대한 크게
+· 파일명 규칙: 날짜_팀명_비목_금액
+· 사업계획서 미기재 건 신청 불가
+· 타 사업 중복지급 불가
+· 원본서류 관리 철저
+· 기자재(PC, 노트북 등 자산성 물품) 구매 불가
+· 개인 명의 결제 불가, 사업단 직접 결제(법인카드, 계좌이체) 원칙
+· 불명확한 지출은 추후 부적정 판정 가능
+· 견적서, 거래명세서, 영수증 등의 명의는 '사업단' 또는 '참가자 본인'으로 통일`;
+
+// ── 메인 컴포넌트 ─────────────────────────────────────────────────────────────
+
 export default function ProgramGuide() {
     const [openModal, setOpenModal] = useState<string | null>(null);
-    const [notices, setNotices] = useState<Notice[]>([]);
-    const [selectedNotice, setSelectedNotice] = useState<Notice | null>(null);
     const [guideText, setGuideText] = useState('');
 
     useEffect(() => {
-        apiGetNotices().then(setNotices).catch(() => {});
         apiGetSetting('프로그램안내').then(val => {
             if (!val || val.trim() === '') {
                 setGuideText(DEFAULT_GUIDE_TEXT);
@@ -134,24 +147,13 @@ export default function ProgramGuide() {
         }).catch(() => { setGuideText(DEFAULT_GUIDE_TEXT); });
     }, []);
 
-    const formatDate = (d?: string) => {
-        if (!d) return '';
-        try {
-            const dt = new Date(d);
-            if (isNaN(dt.getTime())) return d;
-            return `${dt.getFullYear()}.${String(dt.getMonth() + 1).padStart(2, '0')}.${String(dt.getDate()).padStart(2, '0')}`;
-        } catch { return ''; }
-    };
-
     const Modal = ({ category, title, color, children }: { category: string, title: string, color: string, children: React.ReactNode }) => {
         if (openModal !== category) return null;
         return (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setOpenModal(null)}>
                 <div className="bg-white rounded-2xl shadow-xl w-[90vw] md:w-[85vw] max-w-none max-h-[90vh] overflow-y-auto transform transition-all animate-in fade-in zoom-in-95 duration-200 whitespace-pre-wrap break-keep" onClick={e => e.stopPropagation()}>
                     <div className="sticky top-0 bg-white border-b border-neutral-200 p-5 sm:p-6 flex justify-between items-start sm:items-center z-10 shadow-sm">
-                        <div className="flex flex-col gap-1.5">
-                            <h2 className={`text-2xl sm:text-3xl font-bold text-${color}-800`}>{title}</h2>
-                        </div>
+                        <h2 className={`text-2xl sm:text-3xl font-bold text-${color}-800`}>{title}</h2>
                         <button onClick={() => setOpenModal(null)} className="text-neutral-400 hover:text-neutral-900 font-bold p-1 text-3xl leading-none">&times;</button>
                     </div>
                     <div className="p-6 sm:p-8 text-neutral-800 text-[15px] sm:text-base leading-[1.7]">
@@ -168,41 +170,10 @@ export default function ProgramGuide() {
     };
 
     return (
-        <>
-        <div className="min-h-screen bg-neutral-50 py-8 px-4 sm:px-6 lg:px-8 font-sans whitespace-pre-wrap break-keep">
+        <div className="min-h-screen bg-neutral-50 py-8 px-4 sm:px-6 lg:px-8 font-sans break-keep">
             <div className="max-w-6xl mx-auto space-y-8">
 
-                {/* 공지사항 승람 서팅동시 3개 */}
-                {notices.length > 0 && (
-                    <div className="bg-white border border-amber-200 rounded-2xl p-6 shadow-sm">
-                        <h2 className="text-lg font-bold text-amber-800 flex items-center mb-4">
-                            <Bell className="w-5 h-5 mr-2 text-amber-500" /> 공지사항
-                        </h2>
-                        <ul className="divide-y divide-neutral-100">
-                            {notices.map(n => (
-                                <li key={n.id}
-                                    className="flex items-center justify-between py-3 cursor-pointer hover:bg-amber-50/50 rounded-xl px-2 transition-colors"
-                                    onClick={() => setSelectedNotice(n)}
-                                >
-                                    <span className="font-semibold text-neutral-800 text-sm">{n.제목}</span>
-                                    <span className="text-xs text-neutral-400 ml-4 shrink-0">{formatDate(n.작성일시)}</span>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                )}
-
-                {/* 관리자가 설정한 프로그램 안내 문구 */}
-                {guideText.trim() && (
-                    <div className="bg-white border border-indigo-100 rounded-2xl p-6 shadow-sm">
-                        <h2 className="text-base font-bold text-indigo-800 flex items-center mb-3">
-                            <Info className="w-4 h-4 mr-2 text-indigo-500" /> 운영 안내
-                        </h2>
-                        <p className="text-sm text-neutral-800 leading-relaxed whitespace-pre-wrap">{guideText}</p>
-                    </div>
-                )}
-
-                {/* Header Section */}
+                {/* 헤더 */}
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-neutral-200 text-center">
                     <h1 className="text-2xl sm:text-3xl font-bold text-neutral-900 flex justify-center items-center">
                         <Info className="w-8 h-8 mr-3 text-indigo-600 flex-shrink-0" />
@@ -210,93 +181,50 @@ export default function ProgramGuide() {
                     </h1>
                 </div>
 
-                {/* Section 1: 공통 주의사항 및 지원금 성격 */}
+                {/* Section 1: 공통 안내사항 — DB 설정값 표시 */}
                 <div className="bg-white border text-[15px] sm:text-[16px] border-neutral-200 rounded-2xl p-6 sm:p-8 shadow-sm text-neutral-800 leading-[1.7]">
                     <h2 className="text-2xl font-bold text-neutral-900 mb-6 pb-3 border-b border-neutral-100 flex items-center">
                         <CheckCircle2 className="w-6 h-6 mr-3 text-indigo-600" /> 공통 안내사항
                     </h2>
-
-                    <div className="mb-8">
-                        <SectionBadge title="개요" color="indigo" />
-                        <div className="font-semibold text-neutral-800 p-5 bg-indigo-50/50 rounded-xl border border-indigo-100">여러분들이 받게 되는 ‘성장 지원금’은 단순한 장학금이거나 지원금이 아니며 정부(중소벤처기업부) 예산으로 집행되는 ‘<span className="text-red-600 font-bold">사업비</span>’입니다. 따라서 모든 지출(비용)은 사업계획서에 명시된 창업아이템의 개발·사업화 목적에 직접 연관 되어야 하며, ‘<span className="text-red-600 font-bold">사업단이 대신 결제(구매대행)</span>’하는 방식으로만 집행됩니다.{"\n\n"}<span className="text-red-600 font-bold">양산 목적의 물품·용역 구매는 불가, 시제품 제작 및 시장조사 관련 사항만 집행 가능.</span>{"\n"}모든 거래의 세금계산서나 영수증은 ‘경상국립대학교 산학협력단’ 명의로 발행되어야 합니다.{"\n"}만약 참가자가 개인 신용·체크카드로 선결제하거나, 개인 계좌로 송금한 경우 사업비로 인정하지 않습니다.</div>
-                    </div>
-
-                    <div className="mb-8">
-                        <SectionBadge title="지원금 사용" color="indigo" />
-                        <div className="font-semibold text-neutral-800 p-5 bg-indigo-50/50 rounded-xl border border-indigo-100">현금을 참가자에게 지급하는 것이 아닌 참가자의 요청을 받고 <span className="text-red-600 font-bold">사업단에서 대리 결제</span>하는 방식.{"\n"}즉, 참가자가 ‘필요한 품목’을 제안하면, <span className="text-red-600 font-bold">사업단이 승인 후 직접 결제</span>하는 구조{"\n"}(외상 거래 기본, <span className="text-red-600 font-bold">선결제 불가</span>)</div>
-                    </div>
-
-                    <div className="mb-8">
-                        <SectionBadge title="기본 진행 절차" color="indigo" />
-
-                        <div className="space-y-4 mt-2">
-                            <div className="p-6 bg-blue-50 border border-blue-100 rounded-2xl shadow-sm">
-                                <div className="mb-2"><SectionBadge title="지원금 사용 (1~3주 소요)" color="blue" /></div>
-                                <ProcessFlow steps={['사전 신청(월)', '내부 검토', '승인 후 진행', '결제 및 지급']} theme="blue" />
-                            </div>
-
-                            <div className="p-6 bg-orange-50 border border-orange-100 rounded-2xl shadow-sm">
-                                <div className="mb-2"><SectionBadge title="계획 변경 (1~2주 소요)" color="orange" /></div>
-                                <ProcessFlow steps={['사전 신청(목)', '내부 검토', '승인 후 결재', '완료 및 반영']} theme="orange" />
-                            </div>
-                        </div>
-                    </div>
-
-                    <NoticeCard color="red">
-                        <strong className="block text-red-900 text-xl mb-3">유의사항</strong>
-                        <ul className="list-disc pl-6 space-y-2 font-semibold text-[15px]">
-                            <li>회차당 사업비 사용 금액 최대한 크게</li>
-                            <li>파일명 규칙: 날짜_팀명_비목_금액</li>
-                            <li>사업계획서 미기재 건 신청 불가</li>
-                            <li><span className="text-red-600 font-bold">타 사업 중복지급 불가</span></li>
-                            <li>원본서류 관리 철저</li>
-                            <li>기자재(PC, 노트북 등 <span className="text-red-600 font-bold">자산성 물품) 구매 불가</span></li>
-                            <li><span className="text-red-600 font-bold">개인 명의 결제 불가</span>, 사업단 직접 결제(법인카드, 계좌이체) 원칙</li>
-                            <li>불명확한 지출은 추후 부적정 판정 가능</li>
-                            <li>견적서, 거래명세서, 영수증 등의 명의는 ‘사업단’ 또는 ‘참가자 본인’으로 통일</li>
-                        </ul>
-                    </NoticeCard>
+                    {guideText ? (
+                        <p className="whitespace-pre-wrap leading-relaxed text-neutral-800">{guideText}</p>
+                    ) : (
+                        <p className="text-neutral-400 text-sm">안내 문구를 불러오는 중입니다...</p>
+                    )}
                 </div>
 
-                {/* Section 2: 비목별 퀵 버튼 Grid (4 categories, 2x2 layout) */}
+                {/* Section 2: 비목별 퀵 버튼 */}
                 <div>
                     <h3 className="text-xl font-bold text-neutral-900 mb-6 flex items-center justify-center">
                         <FileText className="w-6 h-6 mr-3 text-indigo-600 flex-shrink-0" />
                         지원 비목별 상세 안내 (클릭 시 팝업)
                     </h3>
-
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
                         <button onClick={() => setOpenModal('여비')} className="group flex flex-col items-center justify-center p-8 bg-white border-2 border-[#0288D1]/20 rounded-2xl shadow-sm hover:shadow-lg hover:border-[#0288D1] hover:bg-[#E1F5FE]/30 transition-all duration-300 transform hover:-translate-y-1">
                             <Plane className="w-10 h-10 text-[#0288D1] mb-4 group-hover:scale-110 transition-transform flex-shrink-0" />
                             <span className="text-xl font-extrabold text-[#0277BD]">여비</span>
                         </button>
-
                         <button onClick={() => setOpenModal('재료비')} className="group flex flex-col items-center justify-center p-8 bg-white border-2 border-[#2E7D32]/20 rounded-2xl shadow-sm hover:shadow-lg hover:border-[#2E7D32] hover:bg-[#E8F5E9]/30 transition-all duration-300 transform hover:-translate-y-1">
                             <Box className="w-10 h-10 text-[#2E7D32] mb-4 group-hover:scale-110 transition-transform flex-shrink-0" />
                             <span className="text-xl font-extrabold text-[#1B5E20]">재료비</span>
                         </button>
-
                         <button onClick={() => setOpenModal('외주용역비')} className="group flex flex-col items-center justify-center p-8 bg-white border-2 border-[#7B1FA2]/20 rounded-2xl shadow-sm hover:shadow-lg hover:border-[#7B1FA2] hover:bg-[#F3E5F5]/30 transition-all duration-300 transform hover:-translate-y-1">
                             <Briefcase className="w-10 h-10 text-[#7B1FA2] mb-4 group-hover:scale-110 transition-transform flex-shrink-0" />
                             <span className="text-xl font-extrabold text-[#4A148C]">외주용역비</span>
                         </button>
-
                         <button onClick={() => setOpenModal('지급수수료')} className="group flex flex-col items-center justify-center p-8 bg-white border-2 border-[#F57F17]/20 rounded-2xl shadow-sm hover:shadow-lg hover:border-[#F57F17] hover:bg-[#FFF8E1]/30 transition-all duration-300 transform hover:-translate-y-1">
                             <UserCheck className="w-10 h-10 text-[#F57F17] mb-4 group-hover:scale-110 transition-transform flex-shrink-0" />
                             <span className="text-xl font-extrabold text-[#E65100]">지급수수료(멘토링)</span>
                         </button>
-
                     </div>
                 </div>
 
-                {/* Modals */}
+                {/* ── 비목별 팝업 모달 ── */}
                 <Modal category="여비" title="여비" color="blue">
                     <div className="mb-8">
                         <SectionBadge title="정의" color="blue" />
                         <div className="font-semibold text-blue-900 p-4 bg-blue-50/50 rounded-xl border border-blue-100">소재지를 벗어나 타 지역 출장 등의 사유로 집행하는 비용.</div>
                     </div>
-
                     <NoticeCard color="blue">
                         <strong className="block text-xl mb-3 text-blue-900">유의사항</strong>
                         <ul className="list-disc pl-6 space-y-2 font-semibold mt-1">
@@ -305,7 +233,6 @@ export default function ProgramGuide() {
                             <li><span className="text-red-600 font-bold">단순 미팅 목적 출장(전시회 관람 등 명확한 목적 없는 경우) 여비 지급 불가</span>.</li>
                         </ul>
                     </NoticeCard>
-
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-neutral-200 mt-8">
                         <h3 className="text-xl font-bold text-neutral-900 mb-4 flex items-center">
                             <FileText className="w-5 h-5 mr-3 text-blue-600" /> 지출 필요 서류 목록
@@ -326,7 +253,6 @@ export default function ProgramGuide() {
                         <SectionBadge title="정의" color="green" />
                         <div className="font-semibold text-green-900 p-4 bg-green-50/50 rounded-xl border border-green-100">사업계획서 상의 사업화를 위해 소모되는 재료 또는 원료 등을 구매하는 비용.</div>
                     </div>
-
                     <NoticeCard color="green">
                         <strong className="block text-xl mb-3 text-green-900">유의사항</strong>
                         <ul className="list-disc pl-6 space-y-2 font-semibold mt-1">
@@ -335,12 +261,10 @@ export default function ProgramGuide() {
                             <li>매주 화요일 신청 건 대상 수~목요일 구매 진행. 구매품목과 구매수량이 모두 보이게 검수 사진 촬영 필수.</li>
                         </ul>
                     </NoticeCard>
-
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-neutral-200 mt-8">
                         <h3 className="text-xl font-bold text-green-800 mb-6 flex items-center border-b pb-3 border-green-100">
                             <FileText className="w-5 h-5 mr-3 text-green-600" /> 지출 필요 서류 목록 (온라인/오프라인)
                         </h3>
-
                         <div className="space-y-8">
                             <div>
                                 <strong className="block text-lg text-green-700 mb-4 bg-green-50 px-4 py-2 rounded-lg"><SectionBadge title="온라인 결제 시 서류" color="green" /></strong>
@@ -350,7 +274,6 @@ export default function ProgramGuide() {
                                     ["필수", "물품 증빙사진"]
                                 ]} />
                             </div>
-
                             <div>
                                 <strong className="block text-lg text-green-700 mb-4 bg-green-50 px-4 py-2 rounded-lg"><SectionBadge title="오프라인 결제 시 서류" color="green" /></strong>
                                 <DocumentTable color="green" headers={["구분", "제출해야 할 서류"]} rows={[
@@ -369,7 +292,6 @@ export default function ProgramGuide() {
                         <SectionBadge title="정의" color="purple" />
                         <div className="font-semibold text-purple-900 p-4 bg-purple-50/50 rounded-xl border border-purple-100">사업계획서 상의 창업아이템을 고도화하거나 사업계획을 수행하기 위한 목적으로 일부 공정을 외부 업체에 의뢰하여 제작하고, 이에 대한 대가를 지급하는 비용.</div>
                     </div>
-
                     <NoticeCard color="purple">
                         <strong className="block text-xl mb-3 text-purple-900">유의사항</strong>
                         <ul className="list-disc pl-6 space-y-2 font-semibold mt-1">
@@ -378,12 +300,10 @@ export default function ProgramGuide() {
                             <li>절차 소요시간(1~2주) 감안하여 사전 신청 필요.</li>
                         </ul>
                     </NoticeCard>
-
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-neutral-200 mt-8">
                         <h3 className="text-xl font-bold text-purple-800 mb-6 flex items-center border-b pb-3 border-purple-100">
                             <FileText className="w-5 h-5 mr-3 text-purple-600" /> 지출 필요 서류 목록
                         </h3>
-
                         <div className="space-y-8">
                             <div>
                                 <strong className="block text-lg text-purple-700 mb-4 bg-purple-50 px-4 py-2 rounded-lg"><SectionBadge title="계약 시 상세 서류" color="purple" /></strong>
@@ -393,7 +313,6 @@ export default function ProgramGuide() {
                                     ["업체", "사업자등록증, 통장사본, 인감증명서, 국세/지방세/4대보험 완납증명서"]
                                 ]} />
                             </div>
-
                             <div>
                                 <strong className="block text-lg text-purple-700 mb-4 bg-purple-50 px-4 py-2 rounded-lg"><SectionBadge title="대금 지급 시 상세 서류" color="purple" /></strong>
                                 <DocumentTable color="purple" headers={["요건", "상세 제출 서류 목록"]} rows={[
@@ -409,11 +328,9 @@ export default function ProgramGuide() {
                         <SectionBadge title="정의" color="orange" />
                         <div className="font-semibold text-orange-900 p-4 bg-orange-50/50 rounded-xl border border-orange-100">전문가활용비(멘토링)는 사업모델 개발, 제품 개선 등을 위한 멘토링 진행 시 지급하는 비용을 말한다.</div>
                     </div>
-
                     <NoticeCard color="orange">
                         <strong className="block text-xl mb-3 text-orange-900">유의사항</strong>
                         <p className="mb-4 font-semibold text-[15px]">사업아이템 고도화를 위한 창업 전문가 또는, 사업자등록증 출원 등 법률/행정/세무 전문가를 초빙할시 소요되는 비용이어야함 (멘토 자격 충족 必)</p>
-
                         <strong className="block text-lg mb-3 text-orange-800 border-l-4 border-orange-500 pl-3">멘토 자격 요건 (다음 중 하나 이상)</strong>
                         <ol className="list-decimal pl-6 space-y-3 font-semibold bg-orange-50/50 p-5 rounded-xl border border-orange-100 mt-2 text-orange-900 leading-[1.6]">
                             <li>박사학위 소지자</li>
@@ -424,7 +341,6 @@ export default function ProgramGuide() {
                             <li>기술사, 변리사, 기술지도사, 경영지도사, 공인회계사, 세무사, 변호사, 공인노무사 등 전문직 종사자</li>
                         </ol>
                     </NoticeCard>
-
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-neutral-200 mt-8">
                         <h3 className="text-xl font-bold text-neutral-900 mb-6 flex items-center border-b pb-3 border-orange-100">
                             <FileText className="w-5 h-5 mr-3 text-orange-600" /> 지출 필요 서류 목록
@@ -440,33 +356,5 @@ export default function ProgramGuide() {
 
             </div>
         </div>
-
-        {/* 공지 내용 보기 모달 */}
-        {selectedNotice && (
-            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
-                onClick={() => setSelectedNotice(null)}>
-                <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden"
-                    onClick={e => e.stopPropagation()}>
-                    <div className="px-6 py-4 border-b border-neutral-100 flex items-center justify-between">
-                        <h3 className="text-base font-bold text-neutral-900 flex items-center gap-2">
-                            <Bell className="w-4 h-4 text-amber-500" />
-                            {selectedNotice.제목}
-                        </h3>
-                        <button onClick={() => setSelectedNotice(null)} className="text-neutral-400 hover:text-neutral-600">×</button>
-                    </div>
-                    <div className="px-6 py-5 max-h-[60vh] overflow-y-auto">
-                        <p className="text-sm text-neutral-700 leading-relaxed whitespace-pre-wrap">{selectedNotice.내용}</p>
-                    </div>
-                    <div className="px-6 py-4 border-t border-neutral-100 flex items-center justify-between">
-                        <span className="text-xs text-neutral-400">{formatDate(selectedNotice.작성일시)}</span>
-                        <button onClick={() => setSelectedNotice(null)}
-                            className="px-5 py-2 text-sm font-bold text-white bg-neutral-800 rounded-lg hover:bg-neutral-900 transition-colors">
-                            닫기
-                        </button>
-                    </div>
-                </div>
-            </div>
-        )}
-        </>
     );
 }
