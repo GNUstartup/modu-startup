@@ -42,7 +42,15 @@ function numberToKorean(number: number): string {
     return result.join('');
 }
 
-export default function ExpenseRequestForm() {
+import type { TeamInfo } from '../context/AuthContext';
+
+interface Props {
+    targetUser?: TeamInfo;    // 관리자 대리 작성 시 대상 참가자
+    isAdminProxy?: boolean;   // true면 처리이력에 관리자 대리 작성 기록
+    onSuccess?: () => void;   // 성공 후 콜백 (없으면 /dashboard로 이동)
+}
+
+export default function ExpenseRequestForm({ targetUser, isAdminProxy, onSuccess }: Props = {}) {
     const { user } = useAuth();
     const navigate = useNavigate();
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -56,8 +64,9 @@ export default function ExpenseRequestForm() {
         '지급수수료': 0
     });
 
-    // Shared Form State
-    const projectName = user?.projectName || '';
+    // 대리 작성이면 targetUser, 아니면 로그인 사용자
+    const effectiveUser = targetUser ?? user;
+    const projectName = effectiveUser?.projectName || '';
     const [expenseCategory, setExpenseCategory] = useState('');
     const [amountStr, setAmountStr] = useState('');
 
@@ -88,13 +97,13 @@ export default function ExpenseRequestForm() {
 
     // Financial Validation Tracking
     const getCategoryBudgetInfo = () => {
-        if (!expenseCategory || !user) return { allocated: 0, used: 0, remain: 0 };
+        if (!expenseCategory || !effectiveUser) return { allocated: 0, used: 0, remain: 0 };
 
         let allocated = 0;
-        if (expenseCategory === '여비') allocated = user.budgetYubi || 0;
-        if (expenseCategory === '재료비') allocated = user.budgetJaeryo || 0;
-        if (expenseCategory === '외주용역비') allocated = user.budgetOiju || 0;
-        if (expenseCategory === '지급수수료') allocated = user.budgetJigeup || 0;
+        if (expenseCategory === '여비') allocated = effectiveUser.budgetYubi || 0;
+        if (expenseCategory === '재료비') allocated = effectiveUser.budgetJaeryo || 0;
+        if (expenseCategory === '외주용역비') allocated = effectiveUser.budgetOiju || 0;
+        if (expenseCategory === '지급수수료') allocated = effectiveUser.budgetJigeup || 0;
 
         const used = categoryUsed[expenseCategory] || 0;
         const remain = allocated - used;
@@ -185,6 +194,12 @@ export default function ExpenseRequestForm() {
             application.멘토링주제 = details.mentoringDescription;
         }
 
+        // 관리자 대리 작성: 처리이력 초기 기록
+        if (isAdminProxy) {
+            const now = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+            application['처리이력'] = `${now} / admin / 관리자 대리 작성`;
+        }
+
         try {
             // 파일이 선택된 경우 먼저 업로드 후 URL을 첨부파일 칸에 저장
             if (files.file1) {
@@ -215,7 +230,8 @@ export default function ExpenseRequestForm() {
 
             setTimeout(() => {
                 setIsSuccess(false);
-                navigate('/dashboard');
+                if (onSuccess) onSuccess();
+                else navigate('/dashboard');
             }, 2000);
         } catch (err: any) {
             console.error('[신청 저장 에러]:', err);

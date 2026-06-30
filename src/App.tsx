@@ -8,6 +8,7 @@ import Login from './components/Login';
 import ProgramGuide from './pages/student/ProgramGuide';
 import NoticeBoard, { checkHasUnread } from './pages/student/NoticeBoard';
 import ContentManagement from './pages/admin/ContentManagement';
+import AdminNewRequest from './pages/admin/AdminNewRequest';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { apiGetNotices } from './api';
 import type { Notice } from './api';
@@ -59,6 +60,7 @@ function Navigation() {
                     <Link to="/admin/content" className={navLink('/admin/content')}>게시물 작성</Link>
                     <Link to="/admin" className={navLink('/admin')}>관리자 홈</Link>
                     <Link to="/admin/requests" className={navLink('/admin/requests')}>신청 내역</Link>
+                    <Link to="/admin/new" className={navLink('/admin/new')}>새 신청서 작성</Link>
                 </>
             ) : (
                 <>
@@ -118,6 +120,7 @@ function App() {
                     <Route path="/admin" element={<ProtectedAdminRoute><BudgetDashboard /></ProtectedAdminRoute>} />
                     <Route path="/admin/requests" element={<ProtectedAdminRoute><AdminDashboard /></ProtectedAdminRoute>} />
                     <Route path="/admin/content" element={<ProtectedAdminRoute><ContentManagement /></ProtectedAdminRoute>} />
+                    <Route path="/admin/new" element={<ProtectedAdminRoute><AdminNewRequest /></ProtectedAdminRoute>} />
                 </Routes>
             </BrowserRouter>
         </AuthProvider>
