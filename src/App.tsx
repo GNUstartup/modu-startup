@@ -10,6 +10,7 @@ import NoticeBoard, { checkHasUnread } from './pages/student/NoticeBoard';
 import ContentManagement from './pages/admin/ContentManagement';
 import AdminNewRequest from './pages/admin/AdminNewRequest';
 import CategoryManagement from './pages/admin/CategoryManagement';
+import DynamicRequestForm from './components/DynamicRequestForm';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { apiGetNotices } from './api';
 import type { Notice } from './api';
@@ -118,6 +119,7 @@ function App() {
                     <Route path="/new" element={<ProtectedStudentRoute><ExpenseRequestForm /></ProtectedStudentRoute>} />
                     <Route path="/dashboard" element={<ProtectedStudentRoute><StudentDashboard /></ProtectedStudentRoute>} />
                     <Route path="/notices" element={<ProtectedStudentRoute><NoticeBoard /></ProtectedStudentRoute>} />
+                    <Route path="/dynamic-request" element={<ProtectedStudentRoute><DynamicRequestForm /></ProtectedStudentRoute>} />
 
                     <Route path="/admin" element={<ProtectedAdminRoute><BudgetDashboard /></ProtectedAdminRoute>} />
                     <Route path="/admin/requests" element={<ProtectedAdminRoute><AdminDashboard /></ProtectedAdminRoute>} />

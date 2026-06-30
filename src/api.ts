@@ -460,6 +460,16 @@ export interface Category {
   생성일시?: string;
 }
 
+export async function apiGetActiveCategories(): Promise<Category[]> {
+  const { data, error } = await supabase
+    .from(T_CATEGORIES)
+    .select('*')
+    .eq('사용여부', true)
+    .order('정렬순서', { ascending: true });
+  if (error) throw new Error('비목 조회 실패: ' + error.message);
+  return (data || []) as Category[];
+}
+
 export async function apiGetCategories(): Promise<Category[]> {
   const { data, error } = await supabase
     .from(T_CATEGORIES)
@@ -547,4 +557,47 @@ export async function apiUpdateField(id: number, params: Partial<Field>): Promis
 export async function apiDeleteField(id: number): Promise<void> {
   const { error } = await supabase.from(T_FIELDS).delete().eq('id', id);
   if (error) throw new Error('질문칸 삭제 실패: ' + error.message);
+}
+
+// ===== 동적 신청 생성 =====
+export async function apiCreateDynamicApplication(params: {
+  참가자명: string;
+  비목명: string;
+  동적답변: Record<string, any>;
+  신청금액: number;
+  처리이력?: string;
+}): Promise<string> {
+  const year = new Date().getFullYear();
+  const prefix = `${year}-`;
+
+  const { data: existing, error: selErr } = await supabase
+    .from(T_APPLICATIONS)
+    .select('신청번호')
+    .like('신청번호', `${prefix}%`);
+
+  if (selErr) throw new Error('신청번호 생성 실패: ' + selErr.message);
+
+  let maxSeq = 0;
+  (existing || []).forEach((row: any) => {
+    const seq = parseInt(String(row['신청번호']).substring(prefix.length), 10);
+    if (!isNaN(seq) && seq > maxSeq) maxSeq = seq;
+  });
+  const newNumber = prefix + String(maxSeq + 1).padStart(4, '0');
+
+  const toInsert: Record<string, any> = {
+    신청번호: newNumber,
+    참가자명: params.참가자명,
+    비목: params.비목명,
+    동적비목: params.비목명,
+    동적답변: params.동적답변,
+    신청금액: params.신청금액,
+    상태: '담당자 검토 대기 중',
+    신청일시: new Date().toISOString(),
+  };
+  if (params.처리이력) toInsert['처리이력'] = params.처리이력;
+
+  const { error: insErr } = await supabase.from(T_APPLICATIONS).insert(toInsert);
+  if (insErr) throw new Error('신청 저장 실패: ' + insErr.message);
+
+  return newNumber;
 }
