@@ -1,5 +1,18 @@
-import { useState } from 'react';
-import { Info, AlertCircle, FileText, Plane, Box, Briefcase, UserCheck, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Info, AlertCircle, FileText, Plane, Box, Briefcase, UserCheck, ArrowRight, CheckCircle2, Bell } from 'lucide-react';
+import { apiGetNotices, apiGetSetting, apiUpdateSetting } from '../../api';
+import type { Notice } from '../../api';
+
+// 기존 안내 문구 초기 기본값 (DB가 비어있을 때 자동으로 저장됨)
+const DEFAULT_GUIDE_TEXT = `여러분들이 받게 되는 '성장 지원금'은 단순한 장학금이거나 지원금이 아니며 정부(중소벤처기업부) 예산으로 집행되는 '사업비'입니다. 따라서 모든 지출(비용)은 사업계획서에 명시된 창업아이템의 개발·사업화 목적에 직접 연관 되어야 하며, '사업단이 대신 결제(구매대행)' 하는 방식으로만 집행됩니다.
+
+양산 목적의 물품·용역 구매는 불가, 시제품 제작 및 시장조사 관련 사항만 집행 가능.
+모든 거래의 세금계산서나 영수증은 '경상국립대학교 산학협력단' 명의로 발행되어야 합니다.
+만약 참가자가 개인 신용·체크카드로 선결제하거나, 개인 계좌로 송금한 경우 사업비로 인정하지 않습니다.
+
+지원금은 현금으로 지급하는 것이 아닌, 참가자의 요청을 받고 사업단에서 대리 결제하는 방식입니다.
+즉, 참가자가 '필요한 품목'을 제안하면 사업단이 승인 후 직접 결제하는 구조입니다.
+(외상 거래 기본, 선결제 불가)`;
 
 // Design Components
 const SectionBadge = ({ title, color = "indigo" }: { title: string, color?: "indigo" | "blue" | "green" | "purple" | "orange" }) => {
@@ -105,6 +118,30 @@ const DocumentTable = ({ headers, rows, color = "indigo" }: { headers: string[],
 
 export default function ProgramGuide() {
     const [openModal, setOpenModal] = useState<string | null>(null);
+    const [notices, setNotices] = useState<Notice[]>([]);
+    const [selectedNotice, setSelectedNotice] = useState<Notice | null>(null);
+    const [guideText, setGuideText] = useState('');
+
+    useEffect(() => {
+        apiGetNotices().then(setNotices).catch(() => {});
+        apiGetSetting('프로그램안내').then(val => {
+            if (!val || val.trim() === '') {
+                setGuideText(DEFAULT_GUIDE_TEXT);
+                apiUpdateSetting('프로그램안내', DEFAULT_GUIDE_TEXT).catch(() => {});
+            } else {
+                setGuideText(val);
+            }
+        }).catch(() => { setGuideText(DEFAULT_GUIDE_TEXT); });
+    }, []);
+
+    const formatDate = (d?: string) => {
+        if (!d) return '';
+        try {
+            const dt = new Date(d);
+            if (isNaN(dt.getTime())) return d;
+            return `${dt.getFullYear()}.${String(dt.getMonth() + 1).padStart(2, '0')}.${String(dt.getDate()).padStart(2, '0')}`;
+        } catch { return ''; }
+    };
 
     const Modal = ({ category, title, color, children }: { category: string, title: string, color: string, children: React.ReactNode }) => {
         if (openModal !== category) return null;
@@ -131,8 +168,39 @@ export default function ProgramGuide() {
     };
 
     return (
+        <>
         <div className="min-h-screen bg-neutral-50 py-8 px-4 sm:px-6 lg:px-8 font-sans whitespace-pre-wrap break-keep">
             <div className="max-w-6xl mx-auto space-y-8">
+
+                {/* 공지사항 승람 서팅동시 3개 */}
+                {notices.length > 0 && (
+                    <div className="bg-white border border-amber-200 rounded-2xl p-6 shadow-sm">
+                        <h2 className="text-lg font-bold text-amber-800 flex items-center mb-4">
+                            <Bell className="w-5 h-5 mr-2 text-amber-500" /> 공지사항
+                        </h2>
+                        <ul className="divide-y divide-neutral-100">
+                            {notices.map(n => (
+                                <li key={n.id}
+                                    className="flex items-center justify-between py-3 cursor-pointer hover:bg-amber-50/50 rounded-xl px-2 transition-colors"
+                                    onClick={() => setSelectedNotice(n)}
+                                >
+                                    <span className="font-semibold text-neutral-800 text-sm">{n.제목}</span>
+                                    <span className="text-xs text-neutral-400 ml-4 shrink-0">{formatDate(n.작성일시)}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+
+                {/* 관리자가 설정한 프로그램 안내 문구 */}
+                {guideText.trim() && (
+                    <div className="bg-white border border-indigo-100 rounded-2xl p-6 shadow-sm">
+                        <h2 className="text-base font-bold text-indigo-800 flex items-center mb-3">
+                            <Info className="w-4 h-4 mr-2 text-indigo-500" /> 운영 안내
+                        </h2>
+                        <p className="text-sm text-neutral-800 leading-relaxed whitespace-pre-wrap">{guideText}</p>
+                    </div>
+                )}
 
                 {/* Header Section */}
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-neutral-200 text-center">
@@ -372,5 +440,33 @@ export default function ProgramGuide() {
 
             </div>
         </div>
+
+        {/* 공지 내용 보기 모달 */}
+        {selectedNotice && (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+                onClick={() => setSelectedNotice(null)}>
+                <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden"
+                    onClick={e => e.stopPropagation()}>
+                    <div className="px-6 py-4 border-b border-neutral-100 flex items-center justify-between">
+                        <h3 className="text-base font-bold text-neutral-900 flex items-center gap-2">
+                            <Bell className="w-4 h-4 text-amber-500" />
+                            {selectedNotice.제목}
+                        </h3>
+                        <button onClick={() => setSelectedNotice(null)} className="text-neutral-400 hover:text-neutral-600">×</button>
+                    </div>
+                    <div className="px-6 py-5 max-h-[60vh] overflow-y-auto">
+                        <p className="text-sm text-neutral-700 leading-relaxed whitespace-pre-wrap">{selectedNotice.내용}</p>
+                    </div>
+                    <div className="px-6 py-4 border-t border-neutral-100 flex items-center justify-between">
+                        <span className="text-xs text-neutral-400">{formatDate(selectedNotice.작성일시)}</span>
+                        <button onClick={() => setSelectedNotice(null)}
+                            className="px-5 py-2 text-sm font-bold text-white bg-neutral-800 rounded-lg hover:bg-neutral-900 transition-colors">
+                            닫기
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
+        </>
     );
 }

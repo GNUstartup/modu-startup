@@ -383,3 +383,66 @@ export async function apiUpdateApplication(params: {
 
   if (updErr) throw new Error('신청 수정 저장 실패: ' + updErr.message);
 }
+
+// ===== 사이트 설정 =====
+const T_SETTINGS = '사이트설정';
+
+export async function apiGetSetting(설정키: string): Promise<string> {
+  const { data, error } = await supabase
+    .from(T_SETTINGS)
+    .select('설정값')
+    .eq('설정키', 설정키)
+    .limit(1);
+  if (error) throw new Error('설정 조회 실패: ' + error.message);
+  return (data && data.length > 0) ? ((data[0] as any)['설정값'] || '') : '';
+}
+
+export async function apiUpdateSetting(설정키: string, 설정값: string): Promise<void> {
+  // upsert: 키가 있으면 업데이트, 없으면 삽입
+  const { error } = await supabase
+    .from(T_SETTINGS)
+    .upsert({ 설정키, 설정값 }, { onConflict: '설정키' });
+  if (error) throw new Error('설정 저장 실패: ' + error.message);
+}
+
+// ===== 공지사항 =====
+const T_NOTICES = '공지사항';
+
+export interface Notice {
+  id?: number;
+  제목: string;
+  내용: string;
+  작성일시?: string;
+}
+
+export async function apiGetNotices(): Promise<Notice[]> {
+  const { data, error } = await supabase
+    .from(T_NOTICES)
+    .select('*')
+    .order('작성일시', { ascending: false });
+  if (error) throw new Error('공지사항 조회 실패: ' + error.message);
+  return (data || []) as Notice[];
+}
+
+export async function apiCreateNotice(제목: string, 내용: string): Promise<void> {
+  const { error } = await supabase
+    .from(T_NOTICES)
+    .insert({ 제목, 내용 });
+  if (error) throw new Error('공지 작성 실패: ' + error.message);
+}
+
+export async function apiUpdateNotice(id: number, 제목: string, 내용: string): Promise<void> {
+  const { error } = await supabase
+    .from(T_NOTICES)
+    .update({ 제목, 내용 })
+    .eq('id', id);
+  if (error) throw new Error('공지 수정 실패: ' + error.message);
+}
+
+export async function apiDeleteNotice(id: number): Promise<void> {
+  const { error } = await supabase
+    .from(T_NOTICES)
+    .delete()
+    .eq('id', id);
+  if (error) throw new Error('공지 삭제 실패: ' + error.message);
+}
