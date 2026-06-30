@@ -56,21 +56,21 @@ function Navigation() {
         <div className="absolute top-4 right-4 z-10 flex gap-2 flex-wrap justify-end">
             {user.role === 'admin' ? (
                 <>
+                    <Link to="/admin/content" className={navLink('/admin/content')}>게시물 작성</Link>
                     <Link to="/admin" className={navLink('/admin')}>관리자 홈</Link>
                     <Link to="/admin/requests" className={navLink('/admin/requests')}>신청 내역</Link>
-                    <Link to="/admin/content" className={navLink('/admin/content')}>게시물 작성</Link>
                 </>
             ) : (
                 <>
-                    <Link to="/" className={navLink('/')}>프로그램 안내</Link>
-                    <Link to="/new" className={navLink('/new')}>새 신청서 작성</Link>
-                    <Link to="/dashboard" className={navLink('/dashboard')}>내 신청 내역</Link>
                     <Link to="/notices" className={`relative ${navLink('/notices')}`}>
                         공지사항
                         {hasUnread && (
                             <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-red-500 border-2 border-white" />
                         )}
                     </Link>
+                    <Link to="/" className={navLink('/')}>프로그램 안내</Link>
+                    <Link to="/new" className={navLink('/new')}>새 신청서 작성</Link>
+                    <Link to="/dashboard" className={navLink('/dashboard')}>내 신청 내역</Link>
                 </>
             )}
             <button
