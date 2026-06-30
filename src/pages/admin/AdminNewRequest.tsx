@@ -24,14 +24,19 @@ function participantToTeamInfo(p: Participant): TeamInfo {
 export default function AdminNewRequest() {
     const { user } = useAuth();
     const navigate = useNavigate();
-    const [participants, setParticipants] = useState<Participant[]>([]);
+    // allParticipants: 전체(관리자 포함) / students: 역할='참가자'만 드롭다운에 표시
+    const [allParticipants, setAllParticipants] = useState<Participant[]>([]);
+    const [students, setStudents] = useState<Participant[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedKey, setSelectedKey] = useState('');
     const [targetUser, setTargetUser] = useState<TeamInfo | null>(null);
 
     useEffect(() => {
         apiGetParticipants('관리자')
-            .then(list => setParticipants(list.filter(p => p.역할 === '참가자')))
+            .then(list => {
+                setAllParticipants(list);
+                setStudents(list.filter(p => p.역할 === '참가자'));
+            })
             .catch(() => {})
             .finally(() => setLoading(false));
     }, []);
@@ -39,19 +44,26 @@ export default function AdminNewRequest() {
     const handleConfirm = () => {
         if (!selectedKey) return;
         if (selectedKey === '__admin__') {
-            setTargetUser({
-                projectName: user?.projectName || 'admin',
-                teamLeaderName: '',
-                contact: '',
-                isGnuStudent: false,
-                budgetYubi: 0,
-                budgetJaeryo: 0,
-                budgetOiju: 0,
-                budgetJigeup: 0,
-                role: 'admin',
-            });
+            // 전체 목록에서 admin 행을 찾아 실제 배정금액 사용
+            const adminRow = allParticipants.find(p => p.참가자명 === user?.projectName);
+            if (adminRow) {
+                setTargetUser({ ...participantToTeamInfo(adminRow), role: 'admin' });
+            } else {
+                // participants 표에 admin 행이 없는 경우 fallback
+                setTargetUser({
+                    projectName: user?.projectName || 'admin',
+                    teamLeaderName: '',
+                    contact: '',
+                    isGnuStudent: false,
+                    budgetYubi: 0,
+                    budgetJaeryo: 0,
+                    budgetOiju: 0,
+                    budgetJigeup: 0,
+                    role: 'admin',
+                });
+            }
         } else {
-            const p = participants.find(p => p.참가자명 === selectedKey);
+            const p = allParticipants.find(p => p.참가자명 === selectedKey);
             if (p) setTargetUser(participantToTeamInfo(p));
         }
     };
@@ -96,7 +108,7 @@ export default function AdminNewRequest() {
                                         <option value="__admin__" className="text-neutral-900">
                                             관리자 본인 ({user?.projectName || 'admin'})
                                         </option>
-                                        {participants.map(p => (
+                                        {students.map(p => (
                                             <option key={p.참가자명} value={p.참가자명} className="text-neutral-900">
                                                 {p.참가자명}
                                             </option>
@@ -108,7 +120,7 @@ export default function AdminNewRequest() {
                                 </div>
                             )}
 
-                            {participants.length === 0 && !loading && (
+                            {students.length === 0 && !loading && (
                                 <p className="text-xs text-neutral-400">등록된 참가자가 없습니다. 관리자 본인 이름으로만 작성 가능합니다.</p>
                             )}
                         </div>
