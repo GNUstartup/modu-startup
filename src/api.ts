@@ -446,3 +446,105 @@ export async function apiDeleteNotice(id: number): Promise<void> {
     .eq('id', id);
   if (error) throw new Error('공지 삭제 실패: ' + error.message);
 }
+
+// ===== 비목 =====
+const T_CATEGORIES = '비목';
+
+export interface Category {
+  id?: number;
+  비목명: string;
+  결제방식?: string;
+  정산패턴?: string;
+  정렬순서?: number;
+  사용여부?: boolean;
+  생성일시?: string;
+}
+
+export async function apiGetCategories(): Promise<Category[]> {
+  const { data, error } = await supabase
+    .from(T_CATEGORIES)
+    .select('*')
+    .order('정렬순서', { ascending: true });
+  if (error) throw new Error('비목 조회 실패: ' + error.message);
+  return (data || []) as Category[];
+}
+
+export async function apiCreateCategory(params: {
+  비목명: string;
+  결제방식?: string;
+  정산패턴?: string;
+  정렬순서?: number;
+}): Promise<void> {
+  const { error } = await supabase.from(T_CATEGORIES).insert({
+    비목명: params.비목명,
+    결제방식: params.결제방식 || '',
+    정산패턴: params.정산패턴 || '',
+    정렬순서: params.정렬순서 ?? 0,
+    사용여부: true,
+  });
+  if (error) throw new Error('비목 추가 실패: ' + error.message);
+}
+
+export async function apiUpdateCategory(id: number, params: Partial<Category>): Promise<void> {
+  const { id: _id, 생성일시: _dt, ...rest } = params as any;
+  const { error } = await supabase.from(T_CATEGORIES).update(rest).eq('id', id);
+  if (error) throw new Error('비목 수정 실패: ' + error.message);
+}
+
+export async function apiSetCategoryActive(id: number, 사용여부: boolean): Promise<void> {
+  const { error } = await supabase.from(T_CATEGORIES).update({ 사용여부 }).eq('id', id);
+  if (error) throw new Error('비목 사용여부 변경 실패: ' + error.message);
+}
+
+// ===== 질문칸 =====
+const T_FIELDS = '질문칸';
+
+export interface Field {
+  id?: number;
+  비목id: number;
+  칸이름: string;
+  칸종류: 'text' | 'number' | 'textarea' | 'select' | 'file';
+  선택지?: string;
+  필수여부?: boolean;
+  정렬순서?: number;
+}
+
+export async function apiGetFields(비목id: number): Promise<Field[]> {
+  const { data, error } = await supabase
+    .from(T_FIELDS)
+    .select('*')
+    .eq('비목id', 비목id)
+    .order('정렬순서', { ascending: true });
+  if (error) throw new Error('질문칸 조회 실패: ' + error.message);
+  return (data || []) as Field[];
+}
+
+export async function apiCreateField(params: {
+  비목id: number;
+  칸이름: string;
+  칸종류: Field['칸종류'];
+  선택지?: string;
+  필수여부?: boolean;
+  정렬순서?: number;
+}): Promise<void> {
+  const { error } = await supabase.from(T_FIELDS).insert({
+    비목id: params.비목id,
+    칸이름: params.칸이름,
+    칸종류: params.칸종류,
+    선택지: params.선택지 || '',
+    필수여부: params.필수여부 ?? false,
+    정렬순서: params.정렬순서 ?? 0,
+  });
+  if (error) throw new Error('질문칸 추가 실패: ' + error.message);
+}
+
+export async function apiUpdateField(id: number, params: Partial<Field>): Promise<void> {
+  const { id: _id, 비목id: _cid, ...rest } = params as any;
+  const { error } = await supabase.from(T_FIELDS).update(rest).eq('id', id);
+  if (error) throw new Error('질문칸 수정 실패: ' + error.message);
+}
+
+export async function apiDeleteField(id: number): Promise<void> {
+  const { error } = await supabase.from(T_FIELDS).delete().eq('id', id);
+  if (error) throw new Error('질문칸 삭제 실패: ' + error.message);
+}
