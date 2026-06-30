@@ -2,6 +2,43 @@ import { useState, useEffect } from 'react';
 import { Info, AlertCircle, FileText, Plane, Box, Briefcase, UserCheck, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { apiGetSetting, apiUpdateSetting } from '../../api';
 
+// ── 공유 타입 & 기본값 ────────────────────────────────────────────────────────
+export interface GuideData {
+    개요: string;
+    지원금사용: string;
+    유의사항: string; // 줄바꿈으로 구분된 항목 목록
+}
+
+export const DEFAULT_GUIDE_DATA: GuideData = {
+    개요: `여러분들이 받게 되는 '성장 지원금'은 단순한 장학금이거나 지원금이 아니며 정부(중소벤처기업부) 예산으로 집행되는 '사업비'입니다. 따라서 모든 지출(비용)은 사업계획서에 명시된 창업아이템의 개발·사업화 목적에 직접 연관 되어야 하며, '사업단이 대신 결제(구매대행)'하는 방식으로만 집행됩니다.
+
+양산 목적의 물품·용역 구매는 불가, 시제품 제작 및 시장조사 관련 사항만 집행 가능.
+모든 거래의 세금계산서나 영수증은 '경상국립대학교 산학협력단' 명의로 발행되어야 합니다.
+만약 참가자가 개인 신용·체크카드로 선결제하거나, 개인 계좌로 송금한 경우 사업비로 인정하지 않습니다.`,
+
+    지원금사용: `현금을 참가자에게 지급하는 것이 아닌 참가자의 요청을 받고 사업단에서 대리 결제하는 방식.
+즉, 참가자가 '필요한 품목'을 제안하면, 사업단이 승인 후 직접 결제하는 구조
+(외상 거래 기본, 선결제 불가)`,
+
+    유의사항: `회차당 사업비 사용 금액 최대한 크게
+파일명 규칙: 날짜_팀명_비목_금액
+사업계획서 미기재 건 신청 불가
+타 사업 중복지급 불가
+원본서류 관리 철저
+기자재(PC, 노트북 등 자산성 물품) 구매 불가
+개인 명의 결제 불가, 사업단 직접 결제(법인카드, 계좌이체) 원칙
+불명확한 지출은 추후 부적정 판정 가능
+견적서, 거래명세서, 영수증 등의 명의는 '사업단' 또는 '참가자 본인'으로 통일`,
+};
+
+export function parseGuideData(raw: string): GuideData | null {
+    try {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed.개요 === 'string') return parsed as GuideData;
+    } catch { /* 구버전 텍스트 포맷이거나 빈 값 */ }
+    return null;
+}
+
 // ── 디자인 컴포넌트 ──────────────────────────────────────────────────────────
 
 const SectionBadge = ({ title, color = "indigo" }: { title: string, color?: "indigo" | "blue" | "green" | "purple" | "orange" }) => {
@@ -102,21 +139,22 @@ const DocumentTable = ({ headers, rows, color = "indigo" }: { headers: string[],
     );
 };
 
-// ── 기존 공통 안내사항 JSX (DB 값이 없을 때 표시되는 원본 내용) ────────────────
-function DefaultGuideContent() {
+// ── 공통 안내사항: DB 데이터를 받아 풍부한 디자인으로 렌더링 ─────────────────
+function GuideContent({ data }: { data: GuideData }) {
+    const bullets = data.유의사항.split('\n').filter(line => line.trim() !== '');
     return (
         <>
             <div className="mb-8">
                 <SectionBadge title="개요" color="indigo" />
-                <div className="font-semibold text-neutral-800 p-5 bg-indigo-50/50 rounded-xl border border-indigo-100">
-                    여러분들이 받게 되는 '성장 지원금'은 단순한 장학금이거나 지원금이 아니며 정부(중소벤처기업부) 예산으로 집행되는 '<span className="text-red-600 font-bold">사업비</span>'입니다. 따라서 모든 지출(비용)은 사업계획서에 명시된 창업아이템의 개발·사업화 목적에 직접 연관 되어야 하며, '<span className="text-red-600 font-bold">사업단이 대신 결제(구매대행)</span>'하는 방식으로만 집행됩니다.{"\n\n"}<span className="text-red-600 font-bold">양산 목적의 물품·용역 구매는 불가, 시제품 제작 및 시장조사 관련 사항만 집행 가능.</span>{"\n"}모든 거래의 세금계산서나 영수증은 '경상국립대학교 산학협력단' 명의로 발행되어야 합니다.{"\n"}만약 참가자가 개인 신용·체크카드로 선결제하거나, 개인 계좌로 송금한 경우 사업비로 인정하지 않습니다.
+                <div className="font-semibold text-neutral-800 p-5 bg-indigo-50/50 rounded-xl border border-indigo-100 whitespace-pre-wrap leading-relaxed">
+                    {data.개요}
                 </div>
             </div>
 
             <div className="mb-8">
                 <SectionBadge title="지원금 사용" color="indigo" />
-                <div className="font-semibold text-neutral-800 p-5 bg-indigo-50/50 rounded-xl border border-indigo-100">
-                    현금을 참가자에게 지급하는 것이 아닌 참가자의 요청을 받고 <span className="text-red-600 font-bold">사업단에서 대리 결제</span>하는 방식.{"\n"}즉, 참가자가 '필요한 품목'을 제안하면, <span className="text-red-600 font-bold">사업단이 승인 후 직접 결제</span>하는 구조{"\n"}(외상 거래 기본, <span className="text-red-600 font-bold">선결제 불가</span>)
+                <div className="font-semibold text-neutral-800 p-5 bg-indigo-50/50 rounded-xl border border-indigo-100 whitespace-pre-wrap leading-relaxed">
+                    {data.지원금사용}
                 </div>
             </div>
 
@@ -137,67 +175,31 @@ function DefaultGuideContent() {
             <NoticeCard color="red">
                 <strong className="block text-red-900 text-xl mb-3">유의사항</strong>
                 <ul className="list-disc pl-6 space-y-2 font-semibold text-[15px]">
-                    <li>회차당 사업비 사용 금액 최대한 크게</li>
-                    <li>파일명 규칙: 날짜_팀명_비목_금액</li>
-                    <li>사업계획서 미기재 건 신청 불가</li>
-                    <li><span className="text-red-600 font-bold">타 사업 중복지급 불가</span></li>
-                    <li>원본서류 관리 철저</li>
-                    <li>기자재(PC, 노트북 등 <span className="text-red-600 font-bold">자산성 물품) 구매 불가</span></li>
-                    <li><span className="text-red-600 font-bold">개인 명의 결제 불가</span>, 사업단 직접 결제(법인카드, 계좌이체) 원칙</li>
-                    <li>불명확한 지출은 추후 부적정 판정 가능</li>
-                    <li>견적서, 거래명세서, 영수증 등의 명의는 '사업단' 또는 '참가자 본인'으로 통일</li>
+                    {bullets.map((item, i) => <li key={i}>{item}</li>)}
                 </ul>
             </NoticeCard>
         </>
     );
 }
 
-// DB가 비어있을 때 저장할 기본값 (plain text 버전)
-const DEFAULT_GUIDE_TEXT = `【개요】
-여러분들이 받게 되는 '성장 지원금'은 단순한 장학금이거나 지원금이 아니며 정부(중소벤처기업부) 예산으로 집행되는 '사업비'입니다. 따라서 모든 지출(비용)은 사업계획서에 명시된 창업아이템의 개발·사업화 목적에 직접 연관 되어야 하며, '사업단이 대신 결제(구매대행)' 하는 방식으로만 집행됩니다.
-
-양산 목적의 물품·용역 구매는 불가, 시제품 제작 및 시장조사 관련 사항만 집행 가능.
-모든 거래의 세금계산서나 영수증은 '경상국립대학교 산학협력단' 명의로 발행되어야 합니다.
-만약 참가자가 개인 신용·체크카드로 선결제하거나, 개인 계좌로 송금한 경우 사업비로 인정하지 않습니다.
-
-【지원금 사용】
-현금을 참가자에게 지급하는 것이 아닌 참가자의 요청을 받고 사업단에서 대리 결제하는 방식.
-즉, 참가자가 '필요한 품목'을 제안하면, 사업단이 승인 후 직접 결제하는 구조
-(외상 거래 기본, 선결제 불가)
-
-【기본 진행 절차】
-지원금 사용 (1~3주 소요): 사전 신청(월) → 내부 검토 → 승인 후 진행 → 결제 및 지급
-계획 변경 (1~2주 소요): 사전 신청(목) → 내부 검토 → 승인 후 결재 → 완료 및 반영
-
-【유의사항】
-· 회차당 사업비 사용 금액 최대한 크게
-· 파일명 규칙: 날짜_팀명_비목_금액
-· 사업계획서 미기재 건 신청 불가
-· 타 사업 중복지급 불가
-· 원본서류 관리 철저
-· 기자재(PC, 노트북 등 자산성 물품) 구매 불가
-· 개인 명의 결제 불가, 사업단 직접 결제(법인카드, 계좌이체) 원칙
-· 불명확한 지출은 추후 부적정 판정 가능
-· 견적서, 거래명세서, 영수증 등의 명의는 '사업단' 또는 '참가자 본인'으로 통일`;
-
 // ── 메인 컴포넌트 ─────────────────────────────────────────────────────────────
 
 export default function ProgramGuide() {
     const [openModal, setOpenModal] = useState<string | null>(null);
-    // null = 아직 로드 중, '' = DB에 값 없음(기본 JSX 표시), string = DB 값(plain text 표시)
-    const [guideText, setGuideText] = useState<string | null>(null);
+    const [guideData, setGuideData] = useState<GuideData | null>(null);
 
     useEffect(() => {
-        apiGetSetting('프로그램안내').then(val => {
-            if (!val || val.trim() === '') {
-                // DB가 비어있으면 기본값을 저장하고, 화면엔 원본 JSX를 보여줌
-                setGuideText('');
-                apiUpdateSetting('프로그램안내', DEFAULT_GUIDE_TEXT).catch(() => {});
+        apiGetSetting('프로그램안내').then(raw => {
+            const parsed = parseGuideData(raw);
+            if (parsed) {
+                setGuideData(parsed);
             } else {
-                setGuideText(val);
+                // DB가 비어있거나 구버전 형식 → 기본값으로 초기화
+                setGuideData(DEFAULT_GUIDE_DATA);
+                apiUpdateSetting('프로그램안내', JSON.stringify(DEFAULT_GUIDE_DATA)).catch(() => {});
             }
         }).catch(() => {
-            setGuideText(''); // 오류 시 원본 JSX 표시
+            setGuideData(DEFAULT_GUIDE_DATA);
         });
     }, []);
 
@@ -205,7 +207,7 @@ export default function ProgramGuide() {
         if (openModal !== category) return null;
         return (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setOpenModal(null)}>
-                <div className="bg-white rounded-2xl shadow-xl w-[90vw] md:w-[85vw] max-w-none max-h-[90vh] overflow-y-auto transform transition-all animate-in fade-in zoom-in-95 duration-200 whitespace-pre-wrap break-keep" onClick={e => e.stopPropagation()}>
+                <div className="bg-white rounded-2xl shadow-xl w-[90vw] md:w-[85vw] max-w-none max-h-[90vh] overflow-y-auto transform transition-all animate-in fade-in zoom-in-95 duration-200 break-keep" onClick={e => e.stopPropagation()}>
                     <div className="sticky top-0 bg-white border-b border-neutral-200 p-5 sm:p-6 flex justify-between items-start sm:items-center z-10 shadow-sm">
                         <h2 className={`text-2xl sm:text-3xl font-bold text-${color}-800`}>{title}</h2>
                         <button onClick={() => setOpenModal(null)} className="text-neutral-400 hover:text-neutral-900 font-bold p-1 text-3xl leading-none">&times;</button>
@@ -224,7 +226,7 @@ export default function ProgramGuide() {
     };
 
     return (
-        <div className="min-h-screen bg-neutral-50 py-8 px-4 sm:px-6 lg:px-8 font-sans whitespace-pre-wrap break-keep">
+        <div className="min-h-screen bg-neutral-50 py-8 px-4 sm:px-6 lg:px-8 font-sans break-keep">
             <div className="max-w-6xl mx-auto space-y-8">
 
                 {/* 헤더 */}
@@ -241,13 +243,10 @@ export default function ProgramGuide() {
                         <CheckCircle2 className="w-6 h-6 mr-3 text-indigo-600" /> 공통 안내사항
                     </h2>
 
-                    {/* DB에 커스텀 텍스트가 있으면 plain text로, 없으면 원본 JSX 표시 */}
-                    {guideText === null ? (
+                    {guideData === null ? (
                         <p className="text-neutral-400 text-sm">안내 문구를 불러오는 중입니다...</p>
-                    ) : guideText.trim() === '' ? (
-                        <DefaultGuideContent />
                     ) : (
-                        <p className="whitespace-pre-wrap leading-relaxed text-neutral-800">{guideText}</p>
+                        <GuideContent data={guideData} />
                     )}
                 </div>
 
@@ -287,8 +286,8 @@ export default function ProgramGuide() {
                         <strong className="block text-xl mb-3 text-blue-900">유의사항</strong>
                         <ul className="list-disc pl-6 space-y-2 font-semibold mt-1">
                             <li>교통영수증은 사업단 승인 이후 개인카드로 결제(출장 신청일과 탑승일 동일 필수).</li>
-                            <li>진주-출장지 왕복 영수증(실제 금액 표기) 제출 및 대중교통 이용 원칙(우등/일반실 기준, <span className="text-red-600 font-bold">KTX 특실 등 불가</span>).</li>
-                            <li><span className="text-red-600 font-bold">단순 미팅 목적 출장(전시회 관람 등 명확한 목적 없는 경우) 여비 지급 불가</span>.</li>
+                            <li>진주-출장지 왕복 영수증(실제 금액 표기) 제출 및 대중교통 이용 원칙(우등/일반실 기준, KTX 특실 등 불가).</li>
+                            <li>단순 미팅 목적 출장(전시회 관람 등 명확한 목적 없는 경우) 여비 지급 불가.</li>
                         </ul>
                     </NoticeCard>
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-neutral-200 mt-8">
@@ -315,7 +314,7 @@ export default function ProgramGuide() {
                         <strong className="block text-xl mb-3 text-green-900">유의사항</strong>
                         <ul className="list-disc pl-6 space-y-2 font-semibold mt-1">
                             <li>취득시 자산화(기계·장치) 및 MVP 제작에 소모되지 않는 품목 불가.</li>
-                            <li><span className="text-red-600 font-bold">해외 직구 상품 및 구독 서비스 구매 불가</span>.</li>
+                            <li>해외 직구 상품 및 구독 서비스 구매 불가.</li>
                             <li>매주 화요일 신청 건 대상 수~목요일 구매 진행. 구매품목과 구매수량이 모두 보이게 검수 사진 촬영 필수.</li>
                         </ul>
                     </NoticeCard>
@@ -354,7 +353,7 @@ export default function ProgramGuide() {
                         <strong className="block text-xl mb-3 text-purple-900">유의사항</strong>
                         <ul className="list-disc pl-6 space-y-2 font-semibold mt-1">
                             <li>외부 전문업체는 1년 이상의 해당 분야 종사경력 및 외주용역대상 창업아이템과 유사한 아이템의 제작 경험 보유 필요(업체의 사업자등록증 상 적정 업종 확인).</li>
-                            <li>프리랜서 중개 서비스(크몽, 위시켓 등) 통한 집행 <span className="text-red-600 font-bold">절대 불가</span>. <span className="text-red-600 font-bold">양산목적 금형제작 집행 불가</span>.</li>
+                            <li>프리랜서 중개 서비스(크몽, 위시켓 등) 통한 집행 절대 불가. 양산목적 금형제작 집행 불가.</li>
                             <li>절차 소요시간(1~2주) 감안하여 사전 신청 필요.</li>
                         </ul>
                     </NoticeCard>

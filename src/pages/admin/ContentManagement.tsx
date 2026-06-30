@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Bell, FileText, Plus, Edit2, Trash2, Save, Info } from 'lucide-react';
 import { apiGetSetting, apiUpdateSetting, apiGetNotices, apiCreateNotice, apiUpdateNotice, apiDeleteNotice } from '../../api';
 import type { Notice } from '../../api';
+import { type GuideData, DEFAULT_GUIDE_DATA, parseGuideData } from '../student/ProgramGuide';
 
 export default function ContentManagement() {
     const [activeTab, setActiveTab] = useState<'notices' | 'guide'>('notices');
@@ -18,13 +19,17 @@ export default function ContentManagement() {
     const [noticeInfoMsg, setNoticeInfoMsg] = useState<string | null>(null);
 
     // ── 프로그램 안내 수정 ──
-    const [guideText, setGuideText] = useState('');
+    const [guideData, setGuideData] = useState<GuideData>(DEFAULT_GUIDE_DATA);
     const [guideSaving, setGuideSaving] = useState(false);
     const [guideSaveMsg, setGuideSaveMsg] = useState<string | null>(null);
 
     useEffect(() => {
         loadNotices();
-        apiGetSetting('프로그램안내').then(setGuideText).catch(() => {});
+        apiGetSetting('프로그램안내').then(raw => {
+            const parsed = parseGuideData(raw);
+            if (parsed) setGuideData(parsed);
+            // 파싱 실패 시 DEFAULT_GUIDE_DATA 그대로 사용
+        }).catch(() => {});
     }, []);
 
     const loadNotices = async () => {
@@ -45,7 +50,7 @@ export default function ContentManagement() {
         } catch { return ''; }
     };
 
-    // ── 공지 모달 열기/닫기 ──
+    // ── 공지 모달 ──
     const openNoticeModal = (n?: Notice) => {
         setEditingNotice(n || null);
         setNoticeTitle(n ? n.제목 : '');
@@ -96,14 +101,17 @@ export default function ContentManagement() {
     const handleGuideSave = async () => {
         setGuideSaving(true);
         try {
-            await apiUpdateSetting('프로그램안내', guideText);
-            setGuideSaveMsg('저장되었습니다.');
+            await apiUpdateSetting('프로그램안내', JSON.stringify(guideData));
+            setGuideSaveMsg('저장되었습니다. 참가자 화면에 즉시 반영됩니다.');
         } catch (err: any) {
             setGuideSaveMsg(err.message || '저장 중 오류가 발생했습니다.');
         } finally {
             setGuideSaving(false);
         }
     };
+
+    const updateGuide = (field: keyof GuideData, value: string) =>
+        setGuideData(prev => ({ ...prev, [field]: value }));
 
     return (
         <div className="min-h-screen bg-neutral-50 py-10 px-4 sm:px-6 lg:px-8 font-sans">
@@ -175,31 +183,77 @@ export default function ContentManagement() {
 
                 {/* ── 프로그램 안내 수정 탭 ── */}
                 {activeTab === 'guide' && (
-                    <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 overflow-hidden">
-                        <div className="px-6 py-4 border-b border-neutral-100">
-                            <h2 className="text-base font-bold text-neutral-900 flex items-center gap-2">
-                                <FileText className="w-4 h-4 text-indigo-500" /> 프로그램 안내 문구 수정
-                            </h2>
-                            <p className="text-xs text-neutral-400 mt-1">저장한 내용이 참가자의 "프로그램 안내" 페이지 공통 안내사항에 그대로 표시됩니다.</p>
+                    <div className="space-y-4">
+                        <div className="bg-indigo-50 border border-indigo-100 rounded-xl px-5 py-3 text-sm text-indigo-800 font-medium">
+                            각 섹션의 텍스트를 수정하고 저장하면 참가자 화면에 즉시 반영됩니다. 디자인 틀은 고정이며, 텍스트 내용만 수정됩니다.
                         </div>
-                        <div className="px-6 py-5">
-                            <textarea
-                                value={guideText}
-                                onChange={e => setGuideText(e.target.value)}
-                                rows={18}
-                                placeholder="프로그램 안내 문구를 입력하세요..."
-                                className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-200 outline-none focus:ring-2 focus:ring-indigo-500 text-sm resize-y font-mono"
-                            />
-                            <div className="mt-3 flex justify-end">
-                                <button
-                                    onClick={handleGuideSave}
-                                    disabled={guideSaving}
-                                    className="inline-flex items-center gap-1.5 px-5 py-2 text-sm font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-colors"
-                                >
-                                    <Save className="w-4 h-4" />
-                                    {guideSaving ? '저장 중...' : '저장'}
-                                </button>
+
+                        {/* 개요 */}
+                        <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 overflow-hidden">
+                            <div className="px-6 py-4 border-b border-neutral-100 bg-indigo-50/50">
+                                <h2 className="text-base font-bold text-indigo-900 flex items-center gap-2">
+                                    <span className="w-2 h-2 rounded-full bg-indigo-500 inline-block" /> 개요
+                                </h2>
                             </div>
+                            <div className="px-6 py-5">
+                                <textarea
+                                    value={guideData.개요}
+                                    onChange={e => updateGuide('개요', e.target.value)}
+                                    rows={6}
+                                    className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-200 outline-none focus:ring-2 focus:ring-indigo-500 text-sm resize-y font-sans leading-relaxed"
+                                />
+                            </div>
+                        </div>
+
+                        {/* 지원금 사용 */}
+                        <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 overflow-hidden">
+                            <div className="px-6 py-4 border-b border-neutral-100 bg-indigo-50/50">
+                                <h2 className="text-base font-bold text-indigo-900 flex items-center gap-2">
+                                    <span className="w-2 h-2 rounded-full bg-indigo-500 inline-block" /> 지원금 사용
+                                </h2>
+                            </div>
+                            <div className="px-6 py-5">
+                                <textarea
+                                    value={guideData.지원금사용}
+                                    onChange={e => updateGuide('지원금사용', e.target.value)}
+                                    rows={4}
+                                    className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-200 outline-none focus:ring-2 focus:ring-indigo-500 text-sm resize-y font-sans leading-relaxed"
+                                />
+                            </div>
+                        </div>
+
+                        {/* 유의사항 */}
+                        <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 overflow-hidden">
+                            <div className="px-6 py-4 border-b border-neutral-100 bg-red-50/50">
+                                <h2 className="text-base font-bold text-red-900 flex items-center gap-2">
+                                    <span className="w-2 h-2 rounded-full bg-red-500 inline-block" /> 유의사항
+                                </h2>
+                                <p className="text-xs text-neutral-400 mt-1">한 줄에 항목 하나씩 입력하세요. 각 줄이 글머리 기호(·) 항목으로 표시됩니다.</p>
+                            </div>
+                            <div className="px-6 py-5">
+                                <textarea
+                                    value={guideData.유의사항}
+                                    onChange={e => updateGuide('유의사항', e.target.value)}
+                                    rows={10}
+                                    className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-200 outline-none focus:ring-2 focus:ring-red-400 text-sm resize-y font-sans leading-relaxed"
+                                />
+                            </div>
+                        </div>
+
+                        {/* 기본 진행 절차 안내 */}
+                        <div className="bg-neutral-50 border border-neutral-200 rounded-xl px-5 py-3 text-xs text-neutral-500">
+                            <strong className="text-neutral-600">기본 진행 절차</strong> 섹션(지원금 사용 / 계획 변경 단계 흐름)은 디자인 고정 요소로 수정 대상에서 제외됩니다.
+                        </div>
+
+                        <div className="flex justify-end">
+                            <button
+                                onClick={handleGuideSave}
+                                disabled={guideSaving}
+                                className="inline-flex items-center gap-1.5 px-6 py-2.5 text-sm font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                            >
+                                <Save className="w-4 h-4" />
+                                {guideSaving ? '저장 중...' : '전체 저장'}
+                            </button>
                         </div>
                     </div>
                 )}
